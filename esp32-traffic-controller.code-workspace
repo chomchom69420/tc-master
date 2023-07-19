@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "traffic-controller-testing",
+			"path": "../../traffic-controller-testing"
+		},
+		{
+			"name": "tc-slave",
+			"path": ".."
+		}
+	],
+	"settings": {}
+}

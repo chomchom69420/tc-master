@@ -23,3 +23,21 @@ void parse_mqtt_updates(byte* payload);
 void connectToWiFi();
 
 bool pubsubloop();
+
+/*
+* This function publishes to the /status/logs topic on MQTT
+* Species: master, slave, GUI, app, lcp   (lcp --> local control panel)
+* slave_id : (only required for slave)
+* panel_id : (only required for panel)
+* log_message: message that is to be logged  (TODO: set a character limit on this)
+* Payload format:
+{
+“species”: “”
+(if slave) “slave_id”: ,
+(if panel) “panel_id”: ,
+“timestamp”: “”,
+“log” : “”
+}
+* TODO: Implement the timestamp feature in logging 
+*/
+void mqtt_log(String log_message);

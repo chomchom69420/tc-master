@@ -2,8 +2,8 @@
 #include "delay.h"
 #include "mqtt.h"
 #include "lanes.h"
+#include "control.h"
 #include "slaves.h"
-
 
 void setup(){
   Serial.begin(9600);
@@ -27,5 +27,8 @@ void setup(){
 
 void loop(){
   if(!pubsubloop())  reconnect(); 
-  lanes_update();
+
+  //Update lanes FSM only if control mode is auto
+  if(getControlMode() == ControlMode::AUTO)
+    lanes_update();
 }

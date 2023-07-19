@@ -1,5 +1,6 @@
 #include "mqtt.h"
 #include "credentials.h"
+#include "control.h"
 #include "lanes.h"
 #include "slaves.h"
 #include <WiFi.h>
@@ -45,12 +46,8 @@ void mqtt_callback(char *topic, byte *payload, unsigned int length)
   Serial.print("Topic: ");
   Serial.print(topic);
   Serial.print("\n");
-
-  // const int capacity = JSON_OBJECT_SIZE(9);
-  // DynamicJsonBuffer jb(capacity);                           //Memory pool
-  // JsonObject& parsed = jb.parseObject(payload);
-  // parsed.prettyPrintTo(Serial);
-  // Serial.print("\n");
+  
+  String control_topic = "/traffic/control";
 
   if (strcmp(topic, master_updates_topc.c_str()) == 0)
   {
@@ -63,6 +60,15 @@ void mqtt_callback(char *topic, byte *payload, unsigned int length)
     Serial.println("Update from slave rcvd.");
 
     // check with the desired state present in the master
+  }
+  else if(strcmp(topic, control_topic.c_str()) == 0)
+  {
+    //Make the jsonobject for sending to parse 
+
+    const int capacity = JSON_OBJECT_SIZE(6);
+    StaticJsonBuffer<capacity> jb;
+    JsonObject &parsed = jb.parseObject(payload);
+    setControlMode(parsed);
   }
 }
 
@@ -206,4 +212,23 @@ void parse_mqtt_updates(byte *payload)
 bool pubsubloop()
 {
   return mqttClient.loop();
+}
+
+void mqtt_log(String log_message)
+{
+  char payload[1000];
+  
+  //Remove the species checking code based on context. When uploading code for master, slave, lcp
+  const int capacity = JSON_OBJECT_SIZE(6);  //Required is 5 --> take one more 
+  StaticJsonBuffer<capacity> jb;
+  JsonObject &obj = jb.createObject();
+  // obj["species"]="slave";
+  obj["species"]="master"; 
+  // obj["slave_id"]=SLAVE_ID;
+  // obj["panel_id"]=PANEL_ID;
+  obj["log"]=log_message;
+
+  // Serializing into payload
+  obj.printTo(payload);
+  mqttClient.publish("/status/logs", payload);
 }

@@ -5,3 +5,6 @@
 // Mode select
 #define MODE_STRAIGHT_ONLY 1
 #define MODE_MULTIDIRECTION 2
+
+//Local Control Panel (LCP) ID
+#define PANEL_ID 20
