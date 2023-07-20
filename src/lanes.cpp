@@ -27,7 +27,7 @@ void lanes_set_state(int state)
     signal_state = state;
 }
 
-int lanes_get_state(){  return signal_state;}
+int lanes_get_state(){return signal_state;}
 
 void lanes_update()
 {

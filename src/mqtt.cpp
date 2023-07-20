@@ -119,6 +119,7 @@ void mqtt_publish_signal()
   const int capacity = JSON_OBJECT_SIZE(50);
   StaticJsonBuffer<capacity> jb;
   JsonObject &obj = jb.createObject();
+  obj["n"] = n;
   for (int i = 1; i <= n; i++)
   {
     char s[10];
@@ -222,10 +223,7 @@ void mqtt_log(String log_message)
   const int capacity = JSON_OBJECT_SIZE(6);  //Required is 5 --> take one more 
   StaticJsonBuffer<capacity> jb;
   JsonObject &obj = jb.createObject();
-  // obj["species"]="slave";
   obj["species"]="master"; 
-  // obj["slave_id"]=SLAVE_ID;
-  // obj["panel_id"]=PANEL_ID;
   obj["log"]=log_message;
 
   // Serializing into payload
