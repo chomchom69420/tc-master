@@ -1,4 +1,5 @@
 #include "slots.h"
+#include "slaves.h"
 #include <vector>
 
 float offset = 5.5 * 3600;
@@ -10,8 +11,10 @@ struct slot
 {
     struct tm start;
     struct tm end;
-
-    //TODO: add environment struct instance 
+    
+    //Environment variables
+    int mode_select;
+    int global_fsm_timers[8]; //max states = 7 (max slaves) + 1
 };
 
 typedef std::vector<struct slot> slot_array;
@@ -73,14 +76,25 @@ void slots_set(JsonObject &parsed)
         JsonObject& slots = parsed[(String)day];
         for(JsonPair slot : slots)
         {
-            JsonObject& times = slot.value;
-            JsonObject& start_json = times["start"];
-            JsonObject& end_json = times["end"];
+            JsonObject& start_json = slot.value["start"];
+            JsonObject& end_json = slot.value["end"];
+            JsonObject& mode = slot.value["mode"];
             struct tm start, end;
             start = returnStruct(start_json);
             end = returnStruct(end_json);
+            
+            struct slot temp;
+            temp.start = start;
+            temp.end = end;
+            temp.mode_select = mode["mode"];
+            for(int i=0;i<get_number_of_slaves()+1;i++)
+            {
+                char timer_idx[10];
+                sprintf(timer_idx, "t%d", i);
+                temp.global_fsm_timers[i]=mode[timer_idx];
+            }
 
-            days[day].push_back({start, end});
+            days[day].push_back(temp);
         }
     }
 }
@@ -127,5 +141,8 @@ void slots_updateCurrent()
         }
     }
 
-    //TODO: Update the environment
+    //Now that we have the current slot, update the environment with the right parameters
+    set_sequence_mode(current_slot.mode_select);
+    set_global_timers(current_slot.global_fsm_timers, get_number_of_slaves()+1);
+
 }

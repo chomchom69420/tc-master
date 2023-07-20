@@ -5,7 +5,7 @@ typedef struct {
     int global_fsm_timers[8]; //max is n_slaves + 1
     int slaves_green_timers[7];
     int slaves_red_timers[7];
-} SlaveStates;
+} Environment;
 
 void set_slave_state(int slave_id, int state);
 

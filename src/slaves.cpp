@@ -1,6 +1,6 @@
 #include "slaves.h"
 #include "configurations.h"
-SlaveStates slave_states;
+Environment slave_states;
 
 int get_slave_state(int slave_id){
     return slave_states.states[slave_id-1];
