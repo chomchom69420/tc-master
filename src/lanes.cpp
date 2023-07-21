@@ -2,7 +2,8 @@
 #include "delay.h"
 #include "Arduino.h"
 #include "mqtt.h"
-#include "slaves.h"
+#include "environment.h"
+#include "configurations.h"
 
 int signal_state;
 
@@ -12,13 +13,14 @@ void lanes_start_signals()
 {
     // Start with making everything red
     signal_state = 0;
-    for(int i=1;i<=get_number_of_slaves();i++) set_slave_state(i,0);
+    for(int i=1;i<=env_getNumSlaves();i++) 
+        env_setSlaveState(i,0);
 
     //Communicate to slaves
     mqtt_publish_signal();
 
     //Start delay
-    delay_set(0,get_global_timer(0));
+    delay_set(0,env_getGlobalTimer(0));
 }
 
 void lanes_set_state(int state)
@@ -27,12 +29,14 @@ void lanes_set_state(int state)
     signal_state = state;
 }
 
-int lanes_get_state(){return signal_state;}
+int lanes_get_state() {
+    return signal_state;
+}
 
 void lanes_update()
 {
-    int n = get_number_of_slaves();
-    int mode_select = get_sequence_mode();
+    int n = env_getNumSlaves();
+    int mode_select = env_getSequenceMode();
 
     if (mode_select == MODE_MULTIDIRECTION)
     {
@@ -44,12 +48,13 @@ void lanes_update()
             {
                 signal_state=1;
                 comm_done =0;
-                delay_set(0,get_global_timer(1));
+                delay_set(0,env_getGlobalTimer(1));
             }
             if(!comm_done)
             {
                 //set all lanes to red
-                for(int i=1;i<=n;i++) set_slave_state(i, 0);
+                for(int i=1;i<=n;i++) 
+                    env_setSlaveState(i, 0);
 
                 mqtt_publish_signal();
             }
@@ -60,21 +65,21 @@ void lanes_update()
                 // if the delay is done move to the next lane
                 signal_state = 2;
                 comm_done = 0;
-                delay_set(0, get_global_timer(2));
+                delay_set(0, env_getGlobalTimer(2));
             }
 
             if (!comm_done)
             {
                 // Change slave state
                 // slave_states.states[signal_state - 1] = 1; // set the current lane to green
-                set_slave_state(signal_state, 1);
+                env_setSlaveState(signal_state, 1);
 
                 // set other lanes to red
                 for (int i = 1; i<=n; i++)
                 {
                     if (i == signal_state)
                         continue;
-                    set_slave_state(i, 0);
+                    env_setSlaveState(i, 0);
                 }
 
                 // Send MQTT message
@@ -90,20 +95,20 @@ void lanes_update()
                 // move to next state
                 signal_state = 3;
                 comm_done = 0;
-                delay_set(0, get_global_timer(3));
+                delay_set(0, env_getGlobalTimer(3));
             }
 
             if (!comm_done)
             {
                 // Change slave state
-                set_slave_state(signal_state, 1);
+                env_setSlaveState(signal_state, 1);
 
                 // set other lanes to red
                 for (int i = 1; i<=n; i++)
                 {
                     if (i == signal_state)
                         continue;
-                    set_slave_state(i, 0);
+                    env_setSlaveState(i, 0);
                 }
 
                 // Send MQTT message
@@ -119,19 +124,19 @@ void lanes_update()
                 // move to next state
                 signal_state = 4;
                 comm_done = 0;
-                delay_set(0, get_global_timer(4));
+                delay_set(0, env_getGlobalTimer(4));
             }
             if (!comm_done)
             {
                 // Change slave state
-                set_slave_state(signal_state, 1);
+                env_setSlaveState(signal_state, 1);
 
                 // set other lanes to red
                 for (int i = 1; i<=n; i++)
                 {
                     if (i == signal_state)
                         continue;
-                    set_slave_state(i, 0);
+                    env_setSlaveState(i, 0);
                 }
 
                 // Send MQTT message
@@ -146,19 +151,19 @@ void lanes_update()
                 // move to next state
                 signal_state = 0;
                 comm_done = 0;
-                delay_set(0, get_global_timer(0));
+                delay_set(0, env_getGlobalTimer(0));
             }
             if (!comm_done)
             {
                 // Change slave state
-                set_slave_state(signal_state, 1);
+                env_setSlaveState(signal_state, 1);
 
                 // set other lanes to red
                 for (int i = 1; i<=n; i++)
                 {
                     if (i == signal_state)
                         continue;
-                    set_slave_state(i, 0);
+                    env_setSlaveState(i, 0);
                 }
 
                 // Send MQTT message
@@ -186,13 +191,13 @@ void lanes_update()
             {
                 signal_state=1;
                 comm_done=0;
-                delay_set(0, get_global_timer(1));
+                delay_set(0, env_getGlobalTimer(1));
             }
             if(!comm_done)
             {
                 // Change slave states
                 //All slaves are turned red 
-                for(int i=1;i<=n;i++) set_slave_state(i, 0);
+                for(int i=1;i<=n;i++) env_setSlaveState(i, 0);
             }
         case 1:
             //Slave 1, 3 are turned green
@@ -201,17 +206,17 @@ void lanes_update()
                 // if the delay is done move to the next lane
                 signal_state = 2;
                 comm_done = 0;
-                delay_set(0, get_global_timer(2));
+                delay_set(0, env_getGlobalTimer(2));
             }
 
             if (!comm_done)
             {
                 // Change slave states
                 //Slave 1 and 3 are turned GREEN, all others are RED
-                set_slave_state(1, 1);
-                set_slave_state(3, 1);
-                set_slave_state(2, 0);
-                set_slave_state(4,0); 
+                env_setSlaveState(1, 1);
+                env_setSlaveState(3, 1);
+                env_setSlaveState(2, 0);
+                env_setSlaveState(4, 0); 
 
                 // Send MQTT message
                 mqtt_publish_signal();
@@ -227,17 +232,17 @@ void lanes_update()
                 // move to next state
                 signal_state = 0;
                 comm_done = 0;
-                delay_set(0, get_global_timer(0));
+                delay_set(0, env_getGlobalTimer(0));
             }
 
             if (!comm_done)
             {
                 // Change slave state
                 //Slave 2 and 4 are turned GREEN, all others are RED
-                set_slave_state(1, 0);
-                set_slave_state(3, 0);
-                set_slave_state(2, 1);
-                set_slave_state(4, 1);
+                env_setSlaveState(1, 0);
+                env_setSlaveState(3, 0);
+                env_setSlaveState(2, 1);
+                env_setSlaveState(4, 1);
 
 
                 // Send MQTT message

@@ -2,7 +2,8 @@
 #include "credentials.h"
 #include "control.h"
 #include "lanes.h"
-#include "slaves.h"
+#include "environment.h"
+#include "slots.h"
 #include <WiFi.h>
 #include <ArduinoJson.h>
 
@@ -46,8 +47,9 @@ void mqtt_callback(char *topic, byte *payload, unsigned int length)
   Serial.print("Topic: ");
   Serial.print(topic);
   Serial.print("\n");
-  
+
   String control_topic = "/traffic/control";
+  String slots_topic = "/traffic/slots";
 
   if (strcmp(topic, master_updates_topc.c_str()) == 0)
   {
@@ -61,14 +63,19 @@ void mqtt_callback(char *topic, byte *payload, unsigned int length)
 
     // check with the desired state present in the master
   }
-  else if(strcmp(topic, control_topic.c_str()) == 0)
+  else if (strcmp(topic, control_topic.c_str()) == 0)
   {
-    //Make the jsonobject for sending to parse 
+    // Make the jsonobject for sending to parse
 
     const int capacity = JSON_OBJECT_SIZE(6);
     StaticJsonBuffer<capacity> jb;
     JsonObject &parsed = jb.parseObject(payload);
     setControlMode(parsed);
+  }
+  // if in slots topic
+  else if (strcmp(topic, slots_topic.c_str()) == 0)
+  {
+    parseSlots(payload);
   }
 }
 
@@ -93,6 +100,8 @@ void reconnect()
       mqttClient.subscribe("/traffic/commands");
       mqttClient.subscribe("/traffic/slave_feedback");
       mqttClient.subscribe("/traffic/updates");
+      mqttClient.subscribe("/traffic/slots");
+      mqttClient.subscribe("/traffic/control");
 
       // Master subscribes to each client's status topics
       for (int i = 1; i <= 7; i++)
@@ -113,7 +122,7 @@ void reconnect()
 
 void mqtt_publish_signal()
 {
-  int n = get_number_of_slaves();
+  int n = env_getNumSlaves();
 
   char payload[500];
   const int capacity = JSON_OBJECT_SIZE(50);
@@ -124,7 +133,7 @@ void mqtt_publish_signal()
   {
     char s[10];
     sprintf(s, "S%d", i);
-    obj[s] = get_slave_state(i);
+    obj[s] = env_getSlaveState(i);
   }
 
   for (int i = 1; i <= n; i++)
@@ -132,11 +141,11 @@ void mqtt_publish_signal()
     char s[10];
     sprintf(s, "t%d", i);
     JsonObject &t_n = obj.createNestedObject(s);
-    t_n["red"] = get_slave_timer(i, SLAVE_STATE_RED);
-    t_n["green"] = get_slave_timer(i, SLAVE_STATE_GREEN);
+    t_n["red"] = env_getSlaveTimer(i, SlaveStates::RED);
+    t_n["green"] = env_getSlaveTimer(i, SlaveStates::RED);
   }
 
-  obj["mode"] = get_sequence_mode();
+  obj["mode"] = env_getSequenceMode();
 
   // Serializing into payload
   obj.printTo(payload);
@@ -193,14 +202,14 @@ void parse_mqtt_updates(byte *payload)
 
   // Update slave_states struct
 
-  int prev_n_slaves = get_number_of_slaves();
-  int prev_mode_select = get_sequence_mode();
+  int prev_n_slaves = env_getNumSlaves();
+  int prev_mode_select = env_getSequenceMode();
 
-  set_number_of_slaves(n_slaves);
-  set_sequence_mode(mode_select);
-  set_global_timers(timers, n_slaves);
-  set_slaves_green_timers(slave_timers_green, n_slaves);
-  set_slaves_red_timers(slave_timers_red, n_slaves);
+  env_setNumSlaves(n_slaves);
+  env_setSequenceMode(mode_select);
+  env_setGlobalTimers(timers);
+  env_setSlavesGreenTimers(slave_timers_green);
+  env_setSlavesRedTimers(slave_timers_red);
 
   // Restart if n_slaves or mode_select has been changed
   if (prev_n_slaves != n_slaves || prev_mode_select != mode_select)
@@ -218,15 +227,28 @@ bool pubsubloop()
 void mqtt_log(String log_message)
 {
   char payload[1000];
-  
-  //Remove the species checking code based on context. When uploading code for master, slave, lcp
-  const int capacity = JSON_OBJECT_SIZE(6);  //Required is 5 --> take one more 
+
+  // Remove the species checking code based on context. When uploading code for master, slave, lcp
+  const int capacity = JSON_OBJECT_SIZE(6); // Required is 5 --> take one more
   StaticJsonBuffer<capacity> jb;
   JsonObject &obj = jb.createObject();
-  obj["species"]="master"; 
-  obj["log"]=log_message;
+  obj["species"] = "master";
+  obj["log"] = log_message;
 
   // Serializing into payload
   obj.printTo(payload);
   mqttClient.publish("/status/logs", payload);
+}
+
+static void parseSlots(byte *payload)
+{
+  const int capacity = JSON_OBJECT_SIZE(9);
+  DynamicJsonBuffer jb(capacity);               // Memory pool
+  JsonObject &parsed = jb.parseObject(payload); // Parse message
+
+  //Clear the slots and re-store 
+  slots_clear();
+
+  //Re-store
+  slots_set(parsed);
 }
