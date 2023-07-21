@@ -28,6 +28,19 @@ static void connectToWiFi()
   Serial.print("Connected.");
 }
 
+static void parseSlots(byte *payload)
+{
+  const int capacity = JSON_OBJECT_SIZE(9);
+  DynamicJsonBuffer jb(capacity);               // Memory pool
+  JsonObject &parsed = jb.parseObject(payload); // Parse message
+
+  //Clear the slots and re-store 
+  slots_clearDays();
+
+  //Re-store
+  slots_set(parsed);
+}
+
 static void parse_mqtt_updates(byte *payload)
 {
   Serial.print("Starting to parse updates on master...\n");
@@ -175,19 +188,6 @@ void mqtt_log(String log_message)
   // Serializing into payload
   obj.printTo(payload);
   mqttClient.publish("/status/logs", payload);
-}
-
-static void parseSlots(byte *payload)
-{
-  const int capacity = JSON_OBJECT_SIZE(9);
-  DynamicJsonBuffer jb(capacity);               // Memory pool
-  JsonObject &parsed = jb.parseObject(payload); // Parse message
-
-  //Clear the slots and re-store 
-  slots_clearDays();
-
-  //Re-store
-  slots_set(parsed);
 }
 
 void mqtt_publish(char* topic, char* payload) {

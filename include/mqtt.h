@@ -1,5 +1,4 @@
 #include <PubSubClient.h>
-#include "configurations.h"
 
 #define SLAVE_UPDATES_TOPIC "/traffic/slave_feedback"
 #define MASTER_UPDATES_TOPIC "/traffic/updates"

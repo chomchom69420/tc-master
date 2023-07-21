@@ -28,9 +28,8 @@ void env_set(JsonObject &p)
 
   switch (env.mode)
   {
-
-  case MODE_MD:
     char s[10];
+  case MODE_MD:
     for (int i = 0; i < 4; i++)
     {
       sprintf(s, "g%d", i);
@@ -41,7 +40,6 @@ void env_set(JsonObject &p)
     break;
 
   case MODE_SO:
-    char s[10];
     for (int i = 0; i < 2; i++)
     {
       sprintf(s, "g%d", i);
@@ -101,6 +99,10 @@ void env_setRedExtEnable(bool r)
 
 int env_getPedEnable()
 {
+  return env.p_en;
+}
+
+int  env_getRedExtEnable() {
   return env.r_ext_en;
 }
 
@@ -182,9 +184,8 @@ Environment env_returnStruct(JsonObject &p)
 
   switch (e.mode)
   {
-
+  char s[10];
   case MODE_MD:
-    char s[10];
     for (int i = 0; i < 4; i++)
     {
       sprintf(s, "g%d", i);
@@ -195,7 +196,6 @@ Environment env_returnStruct(JsonObject &p)
     break;
 
   case MODE_SO:
-    char s[10];
     for (int i = 0; i < 2; i++)
     {
       sprintf(s, "g%d", i);

@@ -9,7 +9,7 @@
 
 enum States
 {
-    IDLE, // idle state - all lamps off
+    s_IDLE, // idle state - all lamps off
 
     SO_G1,    // straight only (SO) 1,3 --> green
     SO_AMB1,  // straight only (SO) 1,3 --> amber
@@ -47,117 +47,13 @@ std::vector<slave> slaves(7); // 7 slaves at max
 
 // static int comm_done = 0; // flag to store if latest state has been communicated or not
 
-void lanes_init()
-{
-    state = States::IDLE;
-    lanes_setSlaveState();
-    lanes_publishSignal();
-}
-
-void lanes_publishSignal()
-{
-    char payload[1000];
-    int n = env_getNumSlaves();
-
-    const int capacity = JSON_OBJECT_SIZE(50);
-    StaticJsonBuffer<capacity> jb;
-    JsonObject &obj = jb.createObject();
-
-    obj["n"] = n;
-    JsonObject &json_slaves = obj.createNestedObject("slaves");
-
-    for (int i = 0; i < n; i++)
-    {
-        char s[5];
-        sprintf(s, "%d", i + 1);
-        JsonObject &json_slave = json_slaves.createNestedObject(s);
-        json_slave["state"] = slaves[i].state;
-        json_slave["red"] = slaves[i].r;
-        json_slave["amb"] = slaves[i].amb;
-        json_slave["green"] = slaves[i].g;
-    }
-
-    obj.printTo(payload);
-    mqtt_publish("/traffic/signals", payload);
-}
-
-void lanes_setSlaveTimers()
-{
-    // Set timers
-    int n = env_getNumSlaves();
-    int mode = env_getMode();
-    for (int i = 0; i < n; i++)
-    {
-        if (mode == MODE_BL)
-        {
-            float f = *(env_getParams(mode));
-            slaves[i].r = slaves[i].g = (1 / f) / 2; // T/2 is the green and red time for blink mode
-            slaves[i].amb = 0;
-        }
-
-        else if (mode == MODE_MD)
-        {
-            bool p_en = env_getPedEnable();
-            bool r_en = env_getRedExtEnable();
-            int p_t = env_getPedTimer();
-            int r_ext_t = env_getRedExtTimer();
-
-            int *arr;
-            arr = env_getParams(mode);
-            int g[4], amb[4];
-            for (int j = 0; j < 4; j++)
-            {
-                g[j] = arr[j];
-                amb[j] = arr[j + 4];
-            }
-
-            slaves[i].g = g[i];
-            slaves[i].amb = amb[i];
-            slaves[i].r = p_t * p_en + n * r_ext_t * r_en;
-            for (int j = 0; j < n; j++)
-            {
-                if (i == j)
-                    continue;
-                slaves[i].r += g[i] + amb[i];
-            }
-        }
-
-        else if (mode == MODE_SO)
-        {
-            bool p_en = env_getPedEnable();
-            bool r_en = env_getRedExtEnable();
-            int p_t = env_getPedTimer();
-            int r_ext_t = env_getRedExtTimer();
-
-            int *arr;
-            arr = env_getParams(mode);
-            int g[4], amb[4];
-            for (int j = 0; j < 2; i++)
-            {
-                g[j] = arr[j];
-                amb[j] = arr[j + 2];
-            }
-
-            slaves[i].g = g[i];
-            slaves[i].amb = amb[i];
-            slaves[i].r = p_t * p_en + (n / 2) * r_ext_t * r_en;
-            for (int j = 0; j < n / 2; j++)
-            {
-                if (i == j || i - (n / 2) == j)
-                    continue;
-                slaves[i].r += g[i] + amb[i];
-            }
-        }
-    }
-}
-
 static void lanes_setSlaveState()
 {
     // Set state of the slave -- currently doing for 4 slaves
     int n = env_getNumSlaves();
     switch (state)
     {
-    case States::IDLE:
+    case States::s_IDLE:
         for (int i = 0; i < n; i++)
             slaves[i].state = SlaveStates::IDLE;
         break;
@@ -322,6 +218,110 @@ static void lanes_setSlaveState()
     }
 }
 
+void lanes_init()
+{
+    state = States::s_IDLE;
+    lanes_setSlaveState();
+    lanes_publishSignal();
+}
+
+void lanes_publishSignal()
+{
+    char payload[1000];
+    int n = env_getNumSlaves();
+
+    const int capacity = JSON_OBJECT_SIZE(50);
+    StaticJsonBuffer<capacity> jb;
+    JsonObject &obj = jb.createObject();
+
+    obj["n"] = n;
+    JsonObject &json_slaves = obj.createNestedObject("slaves");
+
+    for (int i = 0; i < n; i++)
+    {
+        char s[5];
+        sprintf(s, "%d", i + 1);
+        JsonObject &json_slave = json_slaves.createNestedObject(s);
+        json_slave["state"] = slaves[i].state;
+        json_slave["red"] = slaves[i].r;
+        json_slave["amb"] = slaves[i].amb;
+        json_slave["green"] = slaves[i].g;
+    }
+
+    obj.printTo(payload);
+    mqtt_publish("/traffic/signals", payload);
+}
+
+void lanes_setSlaveTimers()
+{
+    // Set timers
+    int n = env_getNumSlaves();
+    int mode = env_getMode();
+    for (int i = 0; i < n; i++)
+    {
+        if (mode == MODE_BL)
+        {
+            float f = *(env_getParams(mode));
+            slaves[i].r = slaves[i].g = (1 / f) / 2; // T/2 is the green and red time for blink mode
+            slaves[i].amb = 0;
+        }
+
+        else if (mode == MODE_MD)
+        {
+            bool p_en = env_getPedEnable();
+            bool r_en = env_getRedExtEnable();
+            int p_t = env_getPedTimer();
+            int r_ext_t = env_getRedExtTimer();
+
+            int *arr;
+            arr = env_getParams(mode);
+            int g[4], amb[4];
+            for (int j = 0; j < 4; j++)
+            {
+                g[j] = arr[j];
+                amb[j] = arr[j + 4];
+            }
+
+            slaves[i].g = g[i];
+            slaves[i].amb = amb[i];
+            slaves[i].r = p_t * p_en + n * r_ext_t * r_en;
+            for (int j = 0; j < n; j++)
+            {
+                if (i == j)
+                    continue;
+                slaves[i].r += g[i] + amb[i];
+            }
+        }
+
+        else if (mode == MODE_SO)
+        {
+            bool p_en = env_getPedEnable();
+            bool r_en = env_getRedExtEnable();
+            int p_t = env_getPedTimer();
+            int r_ext_t = env_getRedExtTimer();
+
+            int *arr;
+            arr = env_getParams(mode);
+            int g[4], amb[4];
+            for (int j = 0; j < 2; i++)
+            {
+                g[j] = arr[j];
+                amb[j] = arr[j + 2];
+            }
+
+            slaves[i].g = g[i];
+            slaves[i].amb = amb[i];
+            slaves[i].r = p_t * p_en + (n / 2) * r_ext_t * r_en;
+            for (int j = 0; j < n / 2; j++)
+            {
+                if (i == j || i - (n / 2) == j)
+                    continue;
+                slaves[i].r += g[i] + amb[i];
+            }
+        }
+    }
+}
+
 void lanes_start_signals()
 {
     int mode = env_getMode();
@@ -332,7 +332,7 @@ void lanes_start_signals()
     else if (mode == MODE_BL)
         state = States::BL;
     else
-        state = States::IDLE;
+        state = States::s_IDLE;
 
     lanes_setSlaveState();
     lanes_publishSignal();
@@ -388,7 +388,7 @@ static void lanes_moveToState(enum States s)
 
     switch (state)
     {
-    case States::IDLE:
+    case States::s_IDLE:
         break;
 
     case States::SO_G1:
@@ -486,7 +486,7 @@ void lanes_update()
 
     switch (state)
     {
-    case States::IDLE:
+    case States::s_IDLE:
         // Transition
         if (mode == MODE_SO)
             lanes_moveToState(States::SO_G1);
@@ -668,9 +668,9 @@ void lanes_update()
         if (delay_is_done(0))
         {
             if (mode == MODE_MD)
-                lanes_moveToState(States::IDLE);
+                lanes_moveToState(States::s_IDLE);
             else
-                lanes_moveToState(States::IDLE);
+                lanes_moveToState(States::s_IDLE);
         }
         break;
 
