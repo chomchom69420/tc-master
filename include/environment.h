@@ -34,21 +34,21 @@ Set global timers by passing a pointer to an array containing the timer values i
 This function can be called only after the number
 of states has been updated by calling the set_number_of_slaves() function
 */
-void env_setGlobalTimers(int *global_timers_array, int n);
+void env_setGlobalTimers(int *global_timers_array);
 
 /*
 Set the green_timers of the slaves by passing a pointer to an array containing the slave timer values in seconds
 This function is called only if we already have the slave timings and want to just store them
 In this case the calc_set_slave_timers() function need not be called 
 */
-void env_setSlavesGreenTimers(int *slave_timers_array, int n);
+void env_setSlavesGreenTimers(int *slave_timers_array);
 
 /*
 Set the red timers of the slaves by passing a pointer to an array containg the slave timer values in seconds
 This function is called only if we already have the slave timings and want to just store them
 In this case the calc_set_slave_timers() function need not be called 
 */
-void env_setSlavesRedTimers(int *slave_timers_array, int n);
+void env_setSlavesRedTimers(int *slave_timers_array);
 
 /*
 Calculate the slave timings and set them, no argument needed

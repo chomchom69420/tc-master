@@ -1,5 +1,5 @@
 #include "slots.h"
-#include "slaves.h"
+#include "environment.h"
 #include <vector>
 
 float offset = 5.5 * 3600;
@@ -143,5 +143,5 @@ void slots_updateCurrent()
 
     //Now that we have the current slot, update the environment with the right parameters
     env_setSequenceMode(current_slot.mode_select);
-    env_setGlobalTimers(current_slot.global_fsm_timers, env_getNumSlaves()+1);
+    env_setGlobalTimers(current_slot.global_fsm_timers);
 }
