@@ -1,69 +1,156 @@
 #include "environment.h"
 #include "configurations.h"
+#include "stdio.h"
+
 Environment env;
 
-int env_getSlaveState(int slave_id){
-    return env.states[slave_id-1];
-}
+void env_set(JsonObject& p) {
+  env.n_slaves = p["n"];
+  env.mode = p["mode"];
+  JsonObject& params = p["params"];
 
-void env_setSlaveState(int slave_id, int state){
-    env.states[slave_id-1] = state;
-}
-
-void env_setNumSlaves(int n){
-    env.n_slaves = n;
-}
-
-void env_setSequenceMode(int mode){
-    env.mode_select = mode;
-}
-
-void env_setGlobalTimers(int *global_timers_array) { 
-  for(int i=0;i<env.n_slaves;i++)    
-    env.global_fsm_timers[i] = global_timers_array[i];
-}
-
-void env_setSlavesGreenTimers(int *slave_timers_array) {   
-  for(int i=0;i<env.n_slaves;i++)  
-    env.slaves_green_timers[i] = slave_timers_array[i];
-}
-
-void env_setSlavesRedTimers(int *slave_timers_array) { 
-  for(int i=0;i<env.n_slaves;i++)  
-    env.slaves_red_timers[i] = slave_timers_array[i];
-}
-
-void env_calcSetSlaveTimers(){
-
-  for(int i=0;i< env.n_slaves; i++)
+  switch (env.mode)
   {
-    //Red timers 
-    for(int j=0;j<env.n_slaves+1;j++)
+
+  case MODE_MD:
+    char s[10];
+    for(int i=0;i<4;i++)
     {
-      if(j==i) continue;
-      env.slaves_red_timers[i] += env.global_fsm_timers[j];
+      sprintf(s, "g%d", i);
+      env.md_g[i] = params[s];
+      sprintf(s, "amb%d", i);
+      env.md_amb[i] = params[s];
     }
+    break;
 
-    //Green timers
-    env.slaves_green_timers[i]= env.global_fsm_timers[i];
+  case MODE_SO:
+    char s[10];
+    for(int i=0;i<2;i++)
+    {
+      sprintf(s, "g%d", i);
+      env.so_g[i] = params[s];
+      sprintf(s, "amb%d", i);
+      env.so_amb[i] = params[s];
+    }
+    break;
+
+  case MODE_BL:
+    env.bl_freq = params["f"];
+    break;
+
+  default:
+    break;
   }
+
+  env.p_en = p["pedestrian"];
+  env.r_ext_en = p["red_extension"];
+
+  if(env.p_en)
+    env.p_t = p["ped_timer"];
+  
+  if(env.r_ext_en)
+    env.r_ext_t = p["red_ext_timer"];
 }
 
-int env_getGlobalTimer(int state_id) { 
-  return env.global_fsm_timers[state_id];
+
+void env_setNumSlaves(int n)
+{
+  env.n_slaves = n;
 }
 
-int env_getSlaveTimer(int slave_id, int slave_state){
-    if(slave_state == SlaveStates::RED)  
-      return env.slaves_red_timers[slave_id-1];
-    else 
-      return env.slaves_green_timers[slave_id-1];
+void env_setMode(int mode)
+{
+  env.mode = mode;
 }
 
-int env_getNumSlaves(){ 
+int env_getNumSlaves()
+{
   return env.n_slaves;
 }
 
-int env_getSequenceMode() { 
-  return env.mode_select;
+int env_getMode()
+{
+  return env.mode;
+}
+
+void env_setPedEnable(bool p)
+{
+  env.p_en = p;
+}
+
+void env_setRedExtEnable(bool r)
+{
+  env.r_ext_en = r;
+}
+
+int env_getPedEnable()
+{
+  return env.r_ext_en;
+}
+
+void env_setParams(int mode, int *param_array)
+{
+  switch (mode)
+  {
+
+  case MODE_MD:
+    for (int i = 0; i < 4; i++)
+    {
+      env.md_g[i] = param_array[i];
+      env.md_amb[i] = param_array[i + 4];
+    }
+    break;
+
+  case MODE_SO:
+    for (int i = 0; i < 2; i++)
+    {
+      env.so_g[i] = param_array[i];
+      env.so_amb[i] = param_array[i + 2];
+    }
+    break;
+
+  case MODE_BL:
+    env.bl_freq = param_array[0];
+    break;
+
+  default:
+    break;
+  }
+}
+
+int* env_getParams(int mode)
+{
+  switch ((mode))
+  {
+  case MODE_MD:
+    return env.md_g;
+  case MODE_SO:
+    return env.so_g; // can do this because struct is stored contiguously
+  case MODE_BL:
+    int *a;
+    a = &env.bl_freq;
+    return a;
+  default:
+    break;
+  }
+}
+
+void env_setRedExtTimer(int t)
+{
+  env.r_ext_t = t;
+}
+
+void env_setPedTimer(int t)
+{
+  env.p_t = t;
+}
+
+int env_getRedExtTimer()
+{
+  return env.r_ext_t;
+}
+
+int env_getPedTimer()
+{
+  return env.p_t;
 }

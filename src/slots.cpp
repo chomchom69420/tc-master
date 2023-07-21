@@ -13,7 +13,7 @@ struct slot
     struct tm end;
     
     //Environment variables
-    int mode_select;
+    int mode;
     int global_fsm_timers[8]; //max states = 7 (max slaves) + 1
 };
 
@@ -86,7 +86,7 @@ void slots_set(JsonObject &parsed)
             struct slot temp;
             temp.start = start;
             temp.end = end;
-            temp.mode_select = mode["mode"];
+            temp.mode = mode["mode"];
             for(int i=0;i<env_getNumSlaves()+1;i++)
             {
                 char timer_idx[10];
@@ -142,6 +142,6 @@ void slots_updateCurrent()
     }
 
     //Now that we have the current slot, update the environment with the right parameters
-    env_setSequenceMode(current_slot.mode_select);
+    env_setMode(current_slot.mode);
     env_setGlobalTimers(current_slot.global_fsm_timers);
 }

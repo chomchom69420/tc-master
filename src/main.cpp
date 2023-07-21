@@ -11,13 +11,13 @@ void setup(){
   pinMode(13, OUTPUT);
   delay_init();
   mqtt_setup();
-  reconnect();
+  mqtt_reconnect();
   slots_initTime();
   slots_clear();
 
   //Setup the Slave states
   env_setNumSlaves(4);
-  env_setSequenceMode(MODE_MULTIDIRECTION);
+  env_setMode(MODE_MULTIDIRECTION);
 
   int global_timers[5] = {20,10,15,5,3};
 
@@ -29,7 +29,7 @@ void setup(){
 }
 
 void loop(){
-  if(!pubsubloop())  reconnect(); 
+  if(!mqtt_pubsubloop())  mqtt_reconnect(); 
   
   //Update lanes FSM only if control mode is auto
   if(getControlMode() == ControlMode::AUTO)

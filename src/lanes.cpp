@@ -5,14 +5,41 @@
 #include "environment.h"
 #include "configurations.h"
 
-int signal_state;
+enum States{
+    IDLE,           //idle state - all lamps off
 
+    SO_G1,          //straight only (SO) 1,3 --> green
+    SO_AMB1,        //straight only (SO) 1,3 --> amber
+    SO_REX1,        //straight only (SO) --> red extension 1 (for r_ext_t time)
+    SO_G2,          //straight only (SO) 2,4 --> green
+    SO_AMB2,        //straight only (SO) 2,4 --> amber
+    SO_REXT2,       //straight only (SO) --> red extension 2 (for r_ext_t time)
+
+    MD_G1,          //multidirection (MD) 1 --> green
+    MD_AMB1,        //multidirection (MD) 1 --> amber 
+    MA_REXT1,       //multidirection (MD) --> red extension 1
+    MD_G2,          
+    MD_AMB2,                 
+    MA_REXT2,       
+    MD_G3, 
+    MD_AMB3,
+    MA_REXT3,
+    MD_G4, 
+    MD_AMB4,
+    MA_REXT4,
+    
+    PED,            //Pedestrian lights on (for p time)
+
+    BL              //Blinker (BL) mode for Amber
+};
+
+int state;
 int comm_done = 0; // flag to store if latest value has been communicated or not
 
 void lanes_start_signals()
 {
     // Start with making everything red
-    signal_state = 0;
+    state = 0;
     for(int i=1;i<=env_getNumSlaves();i++) 
         env_setSlaveState(i,0);
 
@@ -26,27 +53,32 @@ void lanes_start_signals()
 void lanes_set_state(int state)
 {
     // Set the state of the fsm
-    signal_state = state;
+    state = state;
 }
 
 int lanes_get_state() {
-    return signal_state;
+    return state;
+}
+
+void lanes_updateCombined()
+{
+
 }
 
 void lanes_update()
 {
     int n = env_getNumSlaves();
-    int mode_select = env_getSequenceMode();
+    int mode = env_getMode();
 
-    if (mode_select == MODE_MULTIDIRECTION)
+    if (mode == MODE_MULTIDIRECTION)
     {
-        switch (signal_state)
+        switch (state)
         {
         case 0:
             //Lane lights off, pedestrian lights ON
             if(delay_is_done(0))
             {
-                signal_state=1;
+                state=1;
                 comm_done =0;
                 delay_set(0,env_getGlobalTimer(1));
             }
@@ -63,7 +95,7 @@ void lanes_update()
             if (delay_is_done(0))
             {
                 // if the delay is done move to the next lane
-                signal_state = 2;
+                state = 2;
                 comm_done = 0;
                 delay_set(0, env_getGlobalTimer(2));
             }
@@ -71,13 +103,13 @@ void lanes_update()
             if (!comm_done)
             {
                 // Change slave state
-                // slave_states.states[signal_state - 1] = 1; // set the current lane to green
-                env_setSlaveState(signal_state, 1);
+                // slave_states.states[state - 1] = 1; // set the current lane to green
+                env_setSlaveState(state, 1);
 
                 // set other lanes to red
                 for (int i = 1; i<=n; i++)
                 {
-                    if (i == signal_state)
+                    if (i == state)
                         continue;
                     env_setSlaveState(i, 0);
                 }
@@ -93,7 +125,7 @@ void lanes_update()
             if (delay_is_done(0))
             {
                 // move to next state
-                signal_state = 3;
+                state = 3;
                 comm_done = 0;
                 delay_set(0, env_getGlobalTimer(3));
             }
@@ -101,12 +133,12 @@ void lanes_update()
             if (!comm_done)
             {
                 // Change slave state
-                env_setSlaveState(signal_state, 1);
+                env_setSlaveState(state, 1);
 
                 // set other lanes to red
                 for (int i = 1; i<=n; i++)
                 {
-                    if (i == signal_state)
+                    if (i == state)
                         continue;
                     env_setSlaveState(i, 0);
                 }
@@ -122,19 +154,19 @@ void lanes_update()
             if (delay_is_done(0))
             {
                 // move to next state
-                signal_state = 4;
+                state = 4;
                 comm_done = 0;
                 delay_set(0, env_getGlobalTimer(4));
             }
             if (!comm_done)
             {
                 // Change slave state
-                env_setSlaveState(signal_state, 1);
+                env_setSlaveState(state, 1);
 
                 // set other lanes to red
                 for (int i = 1; i<=n; i++)
                 {
-                    if (i == signal_state)
+                    if (i == state)
                         continue;
                     env_setSlaveState(i, 0);
                 }
@@ -149,19 +181,19 @@ void lanes_update()
             if (delay_is_done(0))
             {
                 // move to next state
-                signal_state = 0;
+                state = 0;
                 comm_done = 0;
                 delay_set(0, env_getGlobalTimer(0));
             }
             if (!comm_done)
             {
                 // Change slave state
-                env_setSlaveState(signal_state, 1);
+                env_setSlaveState(state, 1);
 
                 // set other lanes to red
                 for (int i = 1; i<=n; i++)
                 {
-                    if (i == signal_state)
+                    if (i == state)
                         continue;
                     env_setSlaveState(i, 0);
                 }
@@ -177,19 +209,19 @@ void lanes_update()
         }
     }
 
-    else if(mode_select == MODE_STRAIGHT_ONLY)
+    else if(mode == MODE_STRAIGHT_ONLY)
     {
 
         //Straights are allowed only 
         //Two sets of slaves are turned GREEN at once
-        switch (signal_state)
+        switch (state)
         {
 
         case 0:
             //All are red, pedestrian lights are ON
             if(delay_is_done(0))
             {
-                signal_state=1;
+                state=1;
                 comm_done=0;
                 delay_set(0, env_getGlobalTimer(1));
             }
@@ -204,7 +236,7 @@ void lanes_update()
             if (delay_is_done(0))
             {
                 // if the delay is done move to the next lane
-                signal_state = 2;
+                state = 2;
                 comm_done = 0;
                 delay_set(0, env_getGlobalTimer(2));
             }
@@ -230,7 +262,7 @@ void lanes_update()
             if (delay_is_done(0))
             {
                 // move to next state
-                signal_state = 0;
+                state = 0;
                 comm_done = 0;
                 delay_set(0, env_getGlobalTimer(0));
             }
