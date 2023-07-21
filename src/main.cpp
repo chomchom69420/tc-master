@@ -3,7 +3,7 @@
 #include "mqtt.h"
 #include "lanes.h"
 #include "control.h"
-#include "slaves.h"
+#include "environment.h"
 
 void setup(){
   Serial.begin(9600);
@@ -14,12 +14,12 @@ void setup(){
 
   //Setup the Slave states
   set_number_of_slaves(4);
-  set_sequence_mode(MODE_MULTIDIRECTION);
+  env_setSequenceMode(MODE_MULTIDIRECTION);
 
   int global_timers[5] = {20,10,15,5,3};
 
-  set_global_timers(global_timers, 4);
-  calc_set_slave_timers();
+  env_setGlobalTimers(global_timers, 4);
+  env_calcSetSlaveTimers();
 
   //Start fsm
   lanes_start_signals();

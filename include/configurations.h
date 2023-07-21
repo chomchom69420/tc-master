@@ -1,6 +1,7 @@
-//Lanes states 
-#define SLAVE_STATE_RED 0
-#define SLAVE_STATE_GREEN 1
+//Slaves states 
+enum SlaveStates {
+    RED, AMBER, GREEN, OFF
+};
 
 // Mode select
 #define MODE_STRAIGHT_ONLY 1

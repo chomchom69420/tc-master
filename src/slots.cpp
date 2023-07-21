@@ -87,7 +87,7 @@ void slots_set(JsonObject &parsed)
             temp.start = start;
             temp.end = end;
             temp.mode_select = mode["mode"];
-            for(int i=0;i<get_number_of_slaves()+1;i++)
+            for(int i=0;i<env_getNumSlaves()+1;i++)
             {
                 char timer_idx[10];
                 sprintf(timer_idx, "t%d", i);
@@ -142,7 +142,6 @@ void slots_updateCurrent()
     }
 
     //Now that we have the current slot, update the environment with the right parameters
-    set_sequence_mode(current_slot.mode_select);
-    set_global_timers(current_slot.global_fsm_timers, get_number_of_slaves()+1);
-
+    env_setSequenceMode(current_slot.mode_select);
+    env_setGlobalTimers(current_slot.global_fsm_timers, env_getNumSlaves()+1);
 }
