@@ -4,288 +4,700 @@
 #include "mqtt.h"
 #include "environment.h"
 #include "configurations.h"
+#include <vector>
+#include "ArduinoJson.h"
 
-enum States{
-    IDLE,           //idle state - all lamps off
+enum States
+{
+    IDLE, // idle state - all lamps off
 
-    SO_G1,          //straight only (SO) 1,3 --> green
-    SO_AMB1,        //straight only (SO) 1,3 --> amber
-    SO_REX1,        //straight only (SO) --> red extension 1 (for r_ext_t time)
-    SO_G2,          //straight only (SO) 2,4 --> green
-    SO_AMB2,        //straight only (SO) 2,4 --> amber
-    SO_REXT2,       //straight only (SO) --> red extension 2 (for r_ext_t time)
+    SO_G1,    // straight only (SO) 1,3 --> green
+    SO_AMB1,  // straight only (SO) 1,3 --> amber
+    SO_REXT1, // straight only (SO) --> red extension 1 (for r_ext_t time)
+    SO_G2,    // straight only (SO) 2,4 --> green
+    SO_AMB2,  // straight only (SO) 2,4 --> amber
+    SO_REXT2, // straight only (SO) --> red extension 2 (for r_ext_t time)
 
-    MD_G1,          //multidirection (MD) 1 --> green
-    MD_AMB1,        //multidirection (MD) 1 --> amber 
-    MA_REXT1,       //multidirection (MD) --> red extension 1
-    MD_G2,          
-    MD_AMB2,                 
-    MA_REXT2,       
-    MD_G3, 
+    MD_G1,    // multidirection (MD) 1 --> green
+    MD_AMB1,  // multidirection (MD) 1 --> amber
+    MD_REXT1, // multidirection (MD) --> red extension 1
+    MD_G2,
+    MD_AMB2,
+    MD_REXT2,
+    MD_G3,
     MD_AMB3,
-    MA_REXT3,
-    MD_G4, 
+    MD_REXT3,
+    MD_G4,
     MD_AMB4,
-    MA_REXT4,
-    
-    PED,            //Pedestrian lights on (for p time)
+    MD_REXT4,
 
-    BL              //Blinker (BL) mode for Amber
+    PED, // Pedestrian lights on (for p time)
+
+    BL // Blinker (BL) mode for Amber
+} state;
+
+typedef struct slave
+{
+    int slave_id;
+    enum SlaveStates state;
+    float r, g, amb;
 };
 
-int state;
-int comm_done = 0; // flag to store if latest value has been communicated or not
+std::vector<slave> slaves(7); // 7 slaves at max
+
+// static int comm_done = 0; // flag to store if latest state has been communicated or not
+
+void lanes_init()
+{
+    state = States::IDLE;
+    lanes_setSlaveState();
+    lanes_publishSignal();
+}
+
+void lanes_publishSignal()
+{
+    char payload[1000];
+    int n = env_getNumSlaves();
+
+    const int capacity = JSON_OBJECT_SIZE(50);
+    StaticJsonBuffer<capacity> jb;
+    JsonObject &obj = jb.createObject();
+
+    obj["n"] = n;
+    JsonObject &json_slaves = obj.createNestedObject("slaves");
+
+    for (int i = 0; i < n; i++)
+    {
+        char s[5];
+        sprintf(s, "%d", i + 1);
+        JsonObject &json_slave = json_slaves.createNestedObject(s);
+        json_slave["state"] = slaves[i].state;
+        json_slave["red"] = slaves[i].r;
+        json_slave["amb"] = slaves[i].amb;
+        json_slave["green"] = slaves[i].g;
+    }
+
+    obj.printTo(payload);
+    mqtt_publish("/traffic/signals", payload);
+}
+
+void lanes_slavesInit()
+{
+    int n = env_getNumSlaves();
+    for (int i = 0; i < n; i++)
+    {
+        slaves[i].slave_id = i + 1;
+        slaves[i].amb = slaves[i].g = slaves[i].r = 0;
+        slaves[i].state = SlaveStates::IDLE;
+    }
+}
+
+void lanes_setSlaveTimers()
+{
+    // Set timers
+    int n = env_getNumSlaves();
+    int mode = env_getMode();
+    for (int i = 0; i < n; i++)
+    {
+        if (mode == MODE_BL)
+        {
+            float f = *(env_getParams(mode));
+            slaves[i].r = slaves[i].g = (1 / f) / 2; // T/2 is the green and red time for blink mode
+            slaves[i].amb = 0;
+        }
+
+        else if (mode == MODE_MD)
+        {
+            bool p_en = env_getPedEnable();
+            bool r_en = env_getRedExtEnable();
+            int p_t = env_getPedTimer();
+            int r_ext_t = env_getRedExtTimer();
+
+            int *arr;
+            arr = env_getParams(mode);
+            int g[4], amb[4];
+            for (int j = 0; j < 4; j++)
+            {
+                g[j] = arr[j];
+                amb[j] = arr[j + 4];
+            }
+
+            slaves[i].g = g[i];
+            slaves[i].amb = amb[i];
+            slaves[i].r = p_t * p_en + n * r_ext_t * r_en;
+            for (int j = 0; j < n; j++)
+            {
+                if (i == j)
+                    continue;
+                slaves[i].r += g[i] + amb[i];
+            }
+        }
+
+        else if (mode == MODE_SO)
+        {
+            bool p_en = env_getPedEnable();
+            bool r_en = env_getRedExtEnable();
+            int p_t = env_getPedTimer();
+            int r_ext_t = env_getRedExtTimer();
+
+            int *arr;
+            arr = env_getParams(mode);
+            int g[4], amb[4];
+            for (int j = 0; j < 2; i++)
+            {
+                g[j] = arr[j];
+                amb[j] = arr[j + 2];
+            }
+
+            slaves[i].g = g[i];
+            slaves[i].amb = amb[i];
+            slaves[i].r = p_t * p_en + (n / 2) * r_ext_t * r_en;
+            for (int j = 0; j < n / 2; j++)
+            {
+                if (i == j || i - (n / 2) == j)
+                    continue;
+                slaves[i].r += g[i] + amb[i];
+            }
+        }
+    }
+}
+
+static void lanes_setSlaveState()
+{
+    // Set state of the slave -- currently doing for 4 slaves
+    int n = env_getNumSlaves();
+    switch (state)
+    {
+    case States::IDLE:
+        for (int i = 0; i < n; i++)
+            slaves[i].state = SlaveStates::IDLE;
+        break;
+
+    case States::SO_G1:
+        for (int i = 0; i < n; i++)
+        {
+            if (i == 0 || i == 0 + n / 2)
+                slaves[i].state = SlaveStates::GREEN;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
+        break;
+
+    case States::SO_AMB1:
+        for (int i = 0; i < n; i++)
+        {
+            if (i == 0 || i == 0 + n / 2)
+                slaves[i].state = SlaveStates::AMBER;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
+        break;
+
+    case States::SO_REXT1:
+        for (int i = 0; i < n; i++)
+            slaves[i].state = SlaveStates::RED;
+        break;
+
+    case States::SO_G2:
+        for (int i = 0; i < n; i++)
+        {
+            if (i == 1 || i == 1 + n / 2)
+                slaves[i].state = SlaveStates::GREEN;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
+        break;
+
+    case States::SO_AMB2:
+        for (int i = 0; i < n; i++)
+        {
+            if (i == 1 || i == 1 + n / 2)
+                slaves[i].state = SlaveStates::AMBER;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
+        break;
+
+    case States::SO_REXT2:
+        for (int i = 0; i < n; i++)
+            slaves[i].state = SlaveStates::RED;
+        break;
+
+    case States::PED:
+        for (int i = 0; i < n; i++)
+            slaves[i].state = SlaveStates::RED;
+        break;
+
+    case States::MD_G1:
+        for (int i = 0; i < n; i++)
+        {
+            if (i == 0)
+                slaves[i].state = SlaveStates::GREEN;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
+        break;
+
+    case States::MD_AMB1:
+        for (int i = 0; i < n; i++)
+        {
+            if (i == 0)
+                slaves[i].state = SlaveStates::AMBER;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
+        break;
+
+    case States::MD_REXT1:
+        for (int i = 0; i < n; i++)
+            slaves[i].state = SlaveStates::RED;
+        break;
+
+    case States::MD_G2:
+        for (int i = 0; i < n; i++)
+        {
+            if (i == 1)
+                slaves[i].state = SlaveStates::GREEN;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
+        break;
+
+    case States::MD_AMB2:
+        for (int i = 0; i < n; i++)
+        {
+            if (i == 1)
+                slaves[i].state = SlaveStates::AMBER;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
+        break;
+
+    case States::MD_REXT2:
+        for (int i = 0; i < n; i++)
+            slaves[i].state = SlaveStates::RED;
+        break;
+
+    case States::MD_G3:
+        for (int i = 0; i < n; i++)
+        {
+            if (i == 2)
+                slaves[i].state = SlaveStates::GREEN;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
+        break;
+
+    case States::MD_AMB3:
+        for (int i = 0; i < n; i++)
+        {
+            if (i == 2)
+                slaves[i].state = SlaveStates::AMBER;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
+        break;
+
+    case States::MD_REXT3:
+        for (int i = 0; i < n; i++)
+            slaves[i].state = SlaveStates::RED;
+        break;
+
+    case States::MD_G4:
+        for (int i = 0; i < n; i++)
+        {
+            if (i == 3)
+                slaves[i].state = SlaveStates::GREEN;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
+        break;
+
+    case States::MD_AMB4:
+        for (int i = 0; i < n; i++)
+        {
+            if (i == 3)
+                slaves[i].state = SlaveStates::AMBER;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
+        break;
+
+    case States::MD_REXT4:
+        for (int i = 0; i < n; i++)
+            slaves[i].state = SlaveStates::RED;
+        break;
+
+    default:
+        break;
+    }
+}
 
 void lanes_start_signals()
 {
-    // Start with making everything red
-    state = 0;
-    for(int i=1;i<=env_getNumSlaves();i++) 
-        env_setSlaveState(i,0);
+    int mode = env_getMode();
+    if (mode == MODE_MD)
+        state = States::MD_G1;
+    else if (mode == MODE_SO)
+        state = States::SO_G1;
+    else if (mode == MODE_BL)
+        state = States::BL;
+    else
+        state = States::IDLE;
 
-    //Communicate to slaves
-    mqtt_publish_signal();
-
-    //Start delay
-    delay_set(0,env_getGlobalTimer(0));
+    lanes_setSlaveState();
+    lanes_publishSignal();
 }
 
-void lanes_set_state(int state)
+static void lanes_moveToState(enum States s)
 {
-    // Set the state of the fsm
-    state = state;
+    // Set the state
+    state = s;
+    lanes_setSlaveState();
+
+    // Publish on MQTT
+    lanes_publishSignal();
+
+    int n = env_getNumSlaves();
+    int mode = env_getMode();
+
+    // Start timers
+    /*
+    There are two steps involved in starting timers
+    1. Get the timer paramters from the environment api and store them aptly
+    2. switch over state and set the required timer by calling the delay api
+    */
+
+    // Getting the timer data
+    int p_t = env_getPedTimer();
+    int r_ext_t = env_getRedExtTimer();
+
+    int *arr;
+    arr = env_getParams(mode);
+    int g[4], amb[4];
+    int t_blink;
+    if (mode == MODE_MD)
+    {
+        for (int j = 0; j < 4; j++)
+        {
+            g[j] = arr[j];
+            amb[j] = arr[j + 4];
+        }
+    }
+    else if (mode == MODE_SO)
+    {
+        for (int j = 0; j < 2; j++)
+        {
+            g[j] = arr[j];
+            amb[j] = arr[j + 2];
+        }
+    }
+    else if (mode == MODE_BL)
+    {
+        t_blink = 1 / (*arr);
+    }
+
+    switch (state)
+    {
+    case States::IDLE:
+        break;
+
+    case States::SO_G1:
+        delay_set(0, g[0]);
+        break;
+
+    case States::SO_AMB1:
+        delay_set(0, amb[0]);
+        break;
+
+    case States::SO_REXT1:
+        delay_set(0, r_ext_t);
+        break;
+
+    case States::SO_G2:
+        delay_set(0, g[1]);
+        break;
+
+    case States::SO_AMB2:
+        delay_set(0, amb[1]);
+        break;
+
+    case States::SO_REXT2:
+        delay_set(0, r_ext_t);
+        break;
+
+    case States::PED:
+        delay_set(0, p_t);
+        break;
+
+    case States::MD_G1:
+        delay_set(0, g[0]);
+        break;
+
+    case States::MD_AMB1:
+        delay_set(0, amb[0]);
+        break;
+
+    case States::MD_REXT1:
+        delay_set(0, r_ext_t);
+        break;
+
+    case States::MD_G2:
+        delay_set(0, g[1]);
+        break;
+
+    case States::MD_AMB2:
+        delay_set(0, amb[1]);
+        break;
+
+    case States::MD_REXT2:
+        delay_set(0, r_ext_t);
+        break;
+
+    case States::MD_G3:
+        delay_set(0, g[2]);
+        break;
+
+    case States::MD_AMB3:
+        delay_set(0, amb[2]);
+        break;
+
+    case States::MD_REXT3:
+        delay_set(0, r_ext_t);
+        break;
+
+    case States::MD_G4:
+        delay_set(0, g[3]);
+        break;
+
+    case States::MD_AMB4:
+        delay_set(0, amb[3]);
+        break;
+
+    case States::MD_REXT4:
+        delay_set(0, r_ext_t);
+        break;
+
+    default:
+        break;
+    }
 }
 
-int lanes_get_state() {
+int lanes_getState()
+{
     return state;
-}
-
-void lanes_updateCombined()
-{
-
 }
 
 void lanes_update()
 {
     int n = env_getNumSlaves();
     int mode = env_getMode();
+    int p_en = env_getPedEnable();
+    int r_ext_en = env_getRedExtEnable();
 
-    if (mode == MODE_MULTIDIRECTION)
+    switch (state)
     {
-        switch (state)
+    case States::IDLE:
+        // Transition
+        if (mode == MODE_SO)
+            lanes_moveToState(States::SO_G1);
+
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+
+        else if (mode == MODE_MD)
+            lanes_moveToState(States::MD_G1);
+        break;
+
+    /*SO FSM part*/
+
+    case States::SO_G1:
+        if (delay_is_done(0) && mode == MODE_SO)
+            lanes_moveToState(States::SO_AMB1);
+        else if (mode == MODE_MD)
+            lanes_moveToState(States::MD_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+        break;
+
+    case States::SO_AMB1:
+        if (delay_is_done(0) && mode == MODE_SO && r_ext_en)
+            lanes_moveToState(States::SO_REXT1);
+        else if (delay_is_done(0) && mode == MODE_SO && !r_ext_en)
+            lanes_moveToState(States::SO_G2);
+        else if (mode == MODE_MD)
+            lanes_moveToState(States::MD_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+        break;
+
+    case States::SO_REXT1:
+        if (delay_is_done(0))
+            lanes_moveToState(States::SO_G2);
+        break;
+
+    case States::SO_G2:
+        if (delay_is_done(0) && mode == MODE_SO)
+            lanes_moveToState(States::SO_AMB2);
+        else if (mode == MODE_MD)
+            lanes_moveToState(States::MD_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+        break;
+
+    case States::SO_AMB2:
+        if (delay_is_done(0) && mode == MODE_SO && r_ext_en)
+            lanes_moveToState(States::SO_REXT2);
+        else if (delay_is_done(0) && mode == MODE_SO && !r_ext_en && p_en)
+            lanes_moveToState(States::PED);
+        else if (delay_is_done(0) && mode == MODE_SO && !r_ext_en && !p_en)
+            lanes_moveToState(States::SO_G1);
+        else if (mode == MODE_MD)
+            lanes_moveToState(States::MD_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+        break;
+
+    case States::SO_REXT2:
+        if (delay_is_done(0) && p_en)
+            lanes_moveToState(States::PED);
+        else if (delay_is_done(0) && !p_en)
+            lanes_moveToState(States::SO_G1);
+        break;
+
+    /*SO FSM part end*/
+
+    /*MD FSM part*/
+
+    case States::MD_G1:
+        if (delay_is_done(0) && mode == MODE_MD)
+            lanes_moveToState(States::MD_AMB1);
+        else if (mode == MODE_SO)
+            lanes_moveToState(States::SO_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+        break;
+
+    case States::MD_AMB1:
+        if (delay_is_done(0) && mode == MODE_MD && r_ext_en)
+            lanes_moveToState(States::MD_REXT1);
+        else if (delay_is_done(0) && mode == MODE_MD && !r_ext_en)
+            lanes_moveToState(States::MD_G2);
+        else if (mode == MODE_SO)
+            lanes_moveToState(States::SO_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+        break;
+
+    case States::MD_REXT1:
+        if (delay_is_done(0))
+            lanes_moveToState(States::MD_G2);
+        break;
+
+    case States::MD_G2:
+        if (delay_is_done(0) && mode == MODE_MD)
+            lanes_moveToState(States::MD_AMB2);
+        else if (mode == MODE_SO)
+            lanes_moveToState(States::SO_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+        break;
+
+    case States::MD_AMB2:
+        if (delay_is_done(0) && mode == MODE_MD && r_ext_en)
+            lanes_moveToState(States::MD_REXT2);
+        else if (delay_is_done(0) && mode == MODE_MD && !r_ext_en)
+            lanes_moveToState(States::MD_G3);
+        else if (mode == MODE_SO)
+            lanes_moveToState(States::SO_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+        break;
+
+    case States::MD_REXT2:
+        if (delay_is_done(0))
+            lanes_moveToState(States::MD_G3);
+        break;
+
+    case States::MD_G3:
+        if (delay_is_done(0) && mode == MODE_MD)
+            lanes_moveToState(States::MD_AMB4);
+        else if (mode == MODE_SO)
+            lanes_moveToState(States::SO_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+        break;
+
+    case States::MD_AMB3:
+        if (delay_is_done(0) && mode == MODE_MD && r_ext_en)
+            lanes_moveToState(States::MD_REXT3);
+        else if (delay_is_done(0) && mode == MODE_MD && !r_ext_en)
+            lanes_moveToState(States::MD_G4);
+        else if (mode == MODE_SO)
+            lanes_moveToState(States::SO_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+        break;
+
+    case States::MD_REXT3:
+        if (delay_is_done(0))
+            lanes_moveToState(States::MD_G4);
+        break;
+
+    case States::MD_G4:
+        if (delay_is_done(0) && mode == MODE_MD)
+            lanes_moveToState(States::MD_AMB4);
+        else if (mode == MODE_SO)
+            lanes_moveToState(States::SO_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+        break;
+
+    case States::MD_AMB4:
+        if (delay_is_done(0) && mode == MODE_MD && r_ext_en)
+            lanes_moveToState(States::MD_REXT4);
+        else if (delay_is_done(0) && mode == MODE_MD && !r_ext_en && p_en)
+            lanes_moveToState(States::PED);
+        else if (delay_is_done(0) && mode == MODE_MD && !r_ext_en && !p_en)
+            lanes_moveToState(States::MD_G1);
+        else if (mode == MODE_SO)
+            lanes_moveToState(States::SO_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+        break;
+
+    case States::MD_REXT4:
+        if (delay_is_done(0) && p_en)
+            lanes_moveToState(States::PED);
+        else if (delay_is_done(0) && !p_en)
+            lanes_moveToState(States::MD_G1);
+        break;
+
+    /*MD fsm part end*/
+
+    case States::PED:
+        if (delay_is_done(0))
         {
-        case 0:
-            //Lane lights off, pedestrian lights ON
-            if(delay_is_done(0))
-            {
-                state=1;
-                comm_done =0;
-                delay_set(0,env_getGlobalTimer(1));
-            }
-            if(!comm_done)
-            {
-                //set all lanes to red
-                for(int i=1;i<=n;i++) 
-                    env_setSlaveState(i, 0);
-
-                mqtt_publish_signal();
-            }
-
-        case 1:
-            if (delay_is_done(0))
-            {
-                // if the delay is done move to the next lane
-                state = 2;
-                comm_done = 0;
-                delay_set(0, env_getGlobalTimer(2));
-            }
-
-            if (!comm_done)
-            {
-                // Change slave state
-                // slave_states.states[state - 1] = 1; // set the current lane to green
-                env_setSlaveState(state, 1);
-
-                // set other lanes to red
-                for (int i = 1; i<=n; i++)
-                {
-                    if (i == state)
-                        continue;
-                    env_setSlaveState(i, 0);
-                }
-
-                // Send MQTT message
-                mqtt_publish_signal();
-                // Set comm_done
-                comm_done = 1;
-            }
-
-            break;
-        case 2:
-            if (delay_is_done(0))
-            {
-                // move to next state
-                state = 3;
-                comm_done = 0;
-                delay_set(0, env_getGlobalTimer(3));
-            }
-
-            if (!comm_done)
-            {
-                // Change slave state
-                env_setSlaveState(state, 1);
-
-                // set other lanes to red
-                for (int i = 1; i<=n; i++)
-                {
-                    if (i == state)
-                        continue;
-                    env_setSlaveState(i, 0);
-                }
-
-                // Send MQTT message
-                mqtt_publish_signal();
-                // Set comm_done
-                comm_done = 1;
-            }
-            break;
-
-        case 3:
-            if (delay_is_done(0))
-            {
-                // move to next state
-                state = 4;
-                comm_done = 0;
-                delay_set(0, env_getGlobalTimer(4));
-            }
-            if (!comm_done)
-            {
-                // Change slave state
-                env_setSlaveState(state, 1);
-
-                // set other lanes to red
-                for (int i = 1; i<=n; i++)
-                {
-                    if (i == state)
-                        continue;
-                    env_setSlaveState(i, 0);
-                }
-
-                // Send MQTT message
-                mqtt_publish_signal();
-                // Set comm_done
-                comm_done = 1;
-            }
-
-        case 4:
-            if (delay_is_done(0))
-            {
-                // move to next state
-                state = 0;
-                comm_done = 0;
-                delay_set(0, env_getGlobalTimer(0));
-            }
-            if (!comm_done)
-            {
-                // Change slave state
-                env_setSlaveState(state, 1);
-
-                // set other lanes to red
-                for (int i = 1; i<=n; i++)
-                {
-                    if (i == state)
-                        continue;
-                    env_setSlaveState(i, 0);
-                }
-
-                // Send MQTT message
-                mqtt_publish_signal();
-                // Set comm_done
-                comm_done = 1;
-            }
-
-        default:
-            break;
+            if (mode == MODE_MD)
+                lanes_moveToState(States::IDLE);
+            else
+                lanes_moveToState(States::IDLE);
         }
-    }
+        break;
 
-    else if(mode == MODE_STRAIGHT_ONLY)
-    {
-
-        //Straights are allowed only 
-        //Two sets of slaves are turned GREEN at once
-        switch (state)
+    case States::BL:
+        if (delay_is_done(0))
         {
-
-        case 0:
-            //All are red, pedestrian lights are ON
-            if(delay_is_done(0))
-            {
-                state=1;
-                comm_done=0;
-                delay_set(0, env_getGlobalTimer(1));
-            }
-            if(!comm_done)
-            {
-                // Change slave states
-                //All slaves are turned red 
-                for(int i=1;i<=n;i++) env_setSlaveState(i, 0);
-            }
-        case 1:
-            //Slave 1, 3 are turned green
-            if (delay_is_done(0))
-            {
-                // if the delay is done move to the next lane
-                state = 2;
-                comm_done = 0;
-                delay_set(0, env_getGlobalTimer(2));
-            }
-
-            if (!comm_done)
-            {
-                // Change slave states
-                //Slave 1 and 3 are turned GREEN, all others are RED
-                env_setSlaveState(1, 1);
-                env_setSlaveState(3, 1);
-                env_setSlaveState(2, 0);
-                env_setSlaveState(4, 0); 
-
-                // Send MQTT message
-                mqtt_publish_signal();
-                // Set comm_done
-                comm_done = 1;
-            }
-
-            break;
-        case 2:
-            //Slave 2, 4 are turned green
-            if (delay_is_done(0))
-            {
-                // move to next state
-                state = 0;
-                comm_done = 0;
-                delay_set(0, env_getGlobalTimer(0));
-            }
-
-            if (!comm_done)
-            {
-                // Change slave state
-                //Slave 2 and 4 are turned GREEN, all others are RED
-                env_setSlaveState(1, 0);
-                env_setSlaveState(3, 0);
-                env_setSlaveState(2, 1);
-                env_setSlaveState(4, 1);
-
-
-                // Send MQTT message
-                mqtt_publish_signal();
-                // Set comm_done
-                comm_done = 1;
-            }
-            break;
-
-        default:
-            break;
+            // Set the delay again
+            lanes_moveToState(States::BL);
         }
+
+        if (mode == MODE_MD)
+            lanes_moveToState(States::MD_G1);
+        else if (mode == MODE_MD)
+            lanes_moveToState(States::SO_G1);
+
+    default:
+        break;
     }
 }

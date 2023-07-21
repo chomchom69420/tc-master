@@ -1,30 +1,70 @@
-#ifndef LANES_H_INCLUDED
-#define LANES_H_INCLUDED
-
-
 /*
-
-Signal states 
-0 → red
-1 → yellow
-2 → forward green
-3 → left green
-4 → right green 
+Publishes the signal over MQTT in a JSON format:
+{
+    "n":    ,
+    "slaves": {
+        "1" : {
+            "state":    ,
+            "red":      ,
+            "amber":    ,
+            "green":    
+        },
+        "2" : {
+            "state":    ,
+            "red":      ,
+            "amber":    ,
+            "green":    
+        },
+        ...
+    }
+}
 */
+void lanes_publishSignal();
 
 /*
-This method is used to initialize the lanes fsm by setting the first lane as the go and stopping traffic on other lanes 
+Initializes the slaves to IDLE and publishes
 */
-void lanes_start_signals();  
+void lanes_slavesInit();
 
 /*
-This method is used to update the lanes fsm to change state from allow traffic on one lane to the other depending on the timer values 
+Calculates and updates the slave timers and publishes
+Environment variables (global parameters) need to be set before calling this function
+*/
+void lanes_setSlaveTimers();
+
+/*
+Updates the lanes fsm
 */
 void lanes_update();
 
-void lanes_set_state(int state);
+/*
+Returns the state of the lanes fsm
+States:
+    IDLE, // idle state - all lamps off
 
-int lanes_get_state();
+    SO_G1,    // straight only (SO) 1,3 --> green
+    SO_AMB1,  // straight only (SO) 1,3 --> amber
+    SO_REXT1, // straight only (SO) --> red extension 1 (for r_ext_t time)
+    SO_G2,    // straight only (SO) 2,4 --> green
+    SO_AMB2,  // straight only (SO) 2,4 --> amber
+    SO_REXT2, // straight only (SO) --> red extension 2 (for r_ext_t time)
 
-#endif
+    MD_G1,    // multidirection (MD) 1 --> green
+    MD_AMB1,  // multidirection (MD) 1 --> amber
+    MD_REXT1, // multidirection (MD) --> red extension 1
+    MD_G2,
+    MD_AMB2,
+    MD_REXT2,
+    MD_G3,
+    MD_AMB3,
+    MD_REXT3,
+    MD_G4,
+    MD_AMB4,
+    MD_REXT4,
+
+    PED, // Pedestrian lights on (for p time)
+
+    BL // Blinker (BL) mode for Amber
+*/
+int lanes_getState();
 

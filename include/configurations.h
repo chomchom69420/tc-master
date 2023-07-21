@@ -1,6 +1,6 @@
 //Slaves states 
 enum SlaveStates {
-    RED, AMBER, GREEN, OFF
+    IDLE, RED, AMBER, GREEN
 };
 
 // Mode select

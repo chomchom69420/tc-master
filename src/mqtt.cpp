@@ -124,37 +124,37 @@ void mqtt_reconnect()
   mqttClient.publish(lastwilltopic.c_str(), "{\"status\":\"Online\"}", true);
 }
 
-void mqtt_publish_signal()
-{
-  int n = env_getNumSlaves();
+// void mqtt_publish_signal()
+// {
+//   int n = env_getNumSlaves();
 
-  char payload[500];
-  const int capacity = JSON_OBJECT_SIZE(50);
-  StaticJsonBuffer<capacity> jb;
-  JsonObject &obj = jb.createObject();
-  obj["n"] = n;
-  for (int i = 1; i <= n; i++)
-  {
-    char s[10];
-    sprintf(s, "S%d", i);
-    obj[s] = env_getSlaveState(i);
-  }
+//   char payload[500];
+//   const int capacity = JSON_OBJECT_SIZE(50);
+//   StaticJsonBuffer<capacity> jb;
+//   JsonObject &obj = jb.createObject();
+//   obj["n"] = n;
+//   for (int i = 1; i <= n; i++)
+//   {
+//     char s[10];
+//     sprintf(s, "S%d", i);
+//     obj[s] = env_getSlaveState(i);
+//   }
 
-  for (int i = 1; i <= n; i++)
-  {
-    char s[10];
-    sprintf(s, "t%d", i);
-    JsonObject &t_n = obj.createNestedObject(s);
-    t_n["red"] = env_getSlaveTimer(i, SlaveStates::RED);
-    t_n["green"] = env_getSlaveTimer(i, SlaveStates::RED);
-  }
+//   for (int i = 1; i <= n; i++)
+//   {
+//     char s[10];
+//     sprintf(s, "t%d", i);
+//     JsonObject &t_n = obj.createNestedObject(s);
+//     t_n["red"] = env_getSlaveTimer(i, SlaveStates::RED);
+//     t_n["green"] = env_getSlaveTimer(i, SlaveStates::RED);
+//   }
 
-  obj["mode"] = env_getMode();
+//   obj["mode"] = env_getMode();
 
-  // Serializing into payload
-  obj.printTo(payload);
-  mqttClient.publish(SIGNAL_PUBLISH_TOPIC, payload);
-}
+//   // Serializing into payload
+//   obj.printTo(payload);
+//   mqttClient.publish(SIGNAL_PUBLISH_TOPIC, payload);
+// }
 
 bool mqtt_pubsubloop()
 {
@@ -188,4 +188,8 @@ static void parseSlots(byte *payload)
 
   //Re-store
   slots_set(parsed);
+}
+
+void mqtt_publish(char* topic, char* payload) {
+    mqttClient.publish(topic, payload);
 }
