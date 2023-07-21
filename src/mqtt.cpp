@@ -184,7 +184,7 @@ static void parseSlots(byte *payload)
   JsonObject &parsed = jb.parseObject(payload); // Parse message
 
   //Clear the slots and re-store 
-  slots_clear();
+  slots_clearDays();
 
   //Re-store
   slots_set(parsed);

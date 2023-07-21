@@ -170,3 +170,62 @@ int env_getPedTimer()
 {
   return env.p_t;
 }
+
+
+/* NOT USED HERE BUT IN slots.cpp*/
+Environment env_returnStruct(JsonObject &p)
+{
+  Environment e;
+  e.n_slaves = p["n"];
+  e.mode = p["mode"];
+  JsonObject &params = p["params"];
+
+  switch (e.mode)
+  {
+
+  case MODE_MD:
+    char s[10];
+    for (int i = 0; i < 4; i++)
+    {
+      sprintf(s, "g%d", i);
+      e.md_g[i] = params[s];
+      sprintf(s, "amb%d", i);
+      e.md_amb[i] = params[s];
+    }
+    break;
+
+  case MODE_SO:
+    char s[10];
+    for (int i = 0; i < 2; i++)
+    {
+      sprintf(s, "g%d", i);
+      e.so_g[i] = params[s];
+      sprintf(s, "amb%d", i);
+      e.so_amb[i] = params[s];
+    }
+    break;
+
+  case MODE_BL:
+    e.bl_freq = params["f"];
+    break;
+
+  default:
+    break;
+  }
+
+  e.p_en = p["pedestrian"];
+  e.r_ext_en = p["red_extension"];
+
+  if (e.p_en)
+    e.p_t = p["ped_timer"];
+
+  if (e.r_ext_en)
+    e.r_ext_t = p["red_ext_timer"];
+
+  return e;
+}
+
+
+void env_set(Environment e) {
+  env = e;
+}

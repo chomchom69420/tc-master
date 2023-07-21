@@ -12,14 +12,13 @@ struct slot
     struct tm start;
     struct tm end;
     
-    //Environment variables
-    int mode;
-    int global_fsm_timers[8]; //max states = 7 (max slaves) + 1
+    //Environment variable
+    Environment env;
 };
 
-typedef std::vector<struct slot> slot_array;
+typedef std::vector<struct slot> slots;
 
-std::vector<slot_array> days(7);
+std::vector<slots> days(7);
 struct slot current_slot;
 
 static struct tm returnStruct(JsonObject& parsed)
@@ -36,6 +35,22 @@ static struct tm returnStruct(JsonObject& parsed)
     t.tm_min = parsed["min"];
     t.tm_sec = parsed["sec"];
     return t;
+}
+
+static void initTimeStruct(struct tm &t)
+{
+    t.tm_year = 123;
+    t.tm_mon = 0;
+    t.tm_wday = 0; //init to Sunday (0-6)
+    t.tm_hour = 0;
+    t.tm_min = 0;
+    t.tm_sec = 0;
+}
+
+void slots_init()
+{
+    //Clear the slots
+    slots_clearDays();
 }
 
 void slots_setTime(JsonObject& parsed)
@@ -78,7 +93,7 @@ void slots_set(JsonObject &parsed)
         {
             JsonObject& start_json = slot.value["start"];
             JsonObject& end_json = slot.value["end"];
-            JsonObject& mode = slot.value["mode"];
+            JsonObject& env_json = slot.value["env"];
             struct tm start, end;
             start = returnStruct(start_json);
             end = returnStruct(end_json);
@@ -86,20 +101,14 @@ void slots_set(JsonObject &parsed)
             struct slot temp;
             temp.start = start;
             temp.end = end;
-            temp.mode = mode["mode"];
-            for(int i=0;i<env_getNumSlaves()+1;i++)
-            {
-                char timer_idx[10];
-                sprintf(timer_idx, "t%d", i);
-                temp.global_fsm_timers[i]=mode[timer_idx];
-            }
+            temp.env = env_returnStruct(env_json);
 
             days[day].push_back(temp);
         }
     }
 }
 
-void slots_clear()
+void slots_clearDays()
 {
     for(int i=0;i<7;i++)
         days[i].clear();
@@ -142,6 +151,5 @@ void slots_updateCurrent()
     }
 
     //Now that we have the current slot, update the environment with the right parameters
-    env_setMode(current_slot.mode);
-    env_setGlobalTimers(current_slot.global_fsm_timers);
+    env_set(current_slot.env);
 }

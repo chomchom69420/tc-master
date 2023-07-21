@@ -78,6 +78,12 @@ JSON format:
 void env_set(JsonObject& parsed);
 
 /*
+Overloaded env_set() function
+Allows to set the native environment form an Environment struct instance passed as an argument
+*/
+void env_set(Environment e);
+
+/*
 Set the number of slaves. min = 1, max = 7
 This function needs to be called before calling 
 set_global_timers(), set_slaves_green_timers(), set_slaves_red_timers()
@@ -149,3 +155,8 @@ int env_getRedExtTimer();
 
 int env_getPedTimer();
 
+
+/*
+Allows other classes to get an environment struct from a compatible JsonObject
+*/
+Environment env_returnStruct(JsonObject &p);

@@ -12,6 +12,7 @@ void setup(){
   delay_init();
   mqtt_setup();
   mqtt_reconnect();
+  slots_init();
   slots_initTime();
   env_init();
   lanes_init(); 
