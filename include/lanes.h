@@ -24,7 +24,7 @@ void lanes_publishSignal();
 /*
 Initializes the slaves to IDLE and publishes
 */
-void lanes_slavesInit();
+void lanes_init();
 
 /*
 Calculates and updates the slave timers and publishes

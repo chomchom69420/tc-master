@@ -4,17 +4,34 @@
 
 Environment env;
 
-void env_set(JsonObject& p) {
+void env_init()
+{
+  env.n_slaves=0;     //initialize with no slaves
+  env.mode = -1;      //initialize in invalid mode
+  env.p_en = 1;       //enable pedestrian by default
+  env.r_ext_en = 1;
+  env.p_t = 0;
+  env.r_ext_t =0;
+  memset(env.so_g, 0, sizeof(env.so_g));        //set all timers to 0
+  memset(env.so_amb, 0, sizeof(env.so_amb));
+  memset(env.md_g, 0, sizeof(env.md_g));
+  memset(env.md_amb, 0, sizeof(env.md_amb));
+
+  int bl_freq = INT16_MAX;
+}
+
+void env_set(JsonObject &p)
+{
   env.n_slaves = p["n"];
   env.mode = p["mode"];
-  JsonObject& params = p["params"];
+  JsonObject &params = p["params"];
 
   switch (env.mode)
   {
 
   case MODE_MD:
     char s[10];
-    for(int i=0;i<4;i++)
+    for (int i = 0; i < 4; i++)
     {
       sprintf(s, "g%d", i);
       env.md_g[i] = params[s];
@@ -25,7 +42,7 @@ void env_set(JsonObject& p) {
 
   case MODE_SO:
     char s[10];
-    for(int i=0;i<2;i++)
+    for (int i = 0; i < 2; i++)
     {
       sprintf(s, "g%d", i);
       env.so_g[i] = params[s];
@@ -45,13 +62,12 @@ void env_set(JsonObject& p) {
   env.p_en = p["pedestrian"];
   env.r_ext_en = p["red_extension"];
 
-  if(env.p_en)
+  if (env.p_en)
     env.p_t = p["ped_timer"];
-  
-  if(env.r_ext_en)
+
+  if (env.r_ext_en)
     env.r_ext_t = p["red_ext_timer"];
 }
-
 
 void env_setNumSlaves(int n)
 {
@@ -118,7 +134,7 @@ void env_setParams(int mode, int *param_array)
   }
 }
 
-int* env_getParams(int mode)
+int *env_getParams(int mode)
 {
   switch ((mode))
   {

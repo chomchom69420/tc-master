@@ -81,17 +81,6 @@ void lanes_publishSignal()
     mqtt_publish("/traffic/signals", payload);
 }
 
-void lanes_slavesInit()
-{
-    int n = env_getNumSlaves();
-    for (int i = 0; i < n; i++)
-    {
-        slaves[i].slave_id = i + 1;
-        slaves[i].amb = slaves[i].g = slaves[i].r = 0;
-        slaves[i].state = SlaveStates::IDLE;
-    }
-}
-
 void lanes_setSlaveTimers()
 {
     // Set timers

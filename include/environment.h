@@ -19,6 +19,62 @@ typedef struct {
     int bl_freq;                //blink frequency for blink mode  
 } Environment;
 
+/*
+Initializes the environment with the following values
+n = 0
+mode = -1
+p_en = true
+r_ex_en = true
+all timers = 0
+bl_freq = INT16_MAX
+*/
+void env_init();
+
+/*
+Parses JsonObject to configure environment
+JSON format:
+{
+    "n":    ,
+    "mode": ,
+    "params": {
+        (if mode == MD)
+        "g0":   ,
+        "g1":   ,
+        "g2":   ,
+        .
+        .
+        "gn-1": 
+        "a0":   ,
+        "a1":   ,
+        "a2":   ,
+        .
+        .
+        "an-1": 
+
+        (if mode == SO)
+        "g0":   ,
+        "g1":   ,
+        "g2":   ,
+        .
+        .
+        "g(n/2 + 1)": 
+        "a0":   ,
+        "a1":   ,
+        "a2":   ,
+        .
+        .
+        "a(n/2 + 1)": 
+
+        (if mode == BL)
+        "f": 
+    }
+
+    "pedestrian":   ,
+    "red_ext":      ,
+    "ped_timer":    ,
+    "r_ext_timer":
+}
+*/
 void env_set(JsonObject& parsed);
 
 /*
