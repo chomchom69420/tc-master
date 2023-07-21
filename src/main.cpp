@@ -8,7 +8,6 @@
 
 void setup(){
   Serial.begin(9600);
-  pinMode(13, OUTPUT);
   delay_init();
   mqtt_setup();
   mqtt_reconnect();
