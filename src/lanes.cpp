@@ -229,12 +229,14 @@ void lanes_publishSignal()
 {
     char payload[1000];
     int n = env_getNumSlaves();
+    int mode = env_getMode();
 
     const int capacity = JSON_OBJECT_SIZE(50);
     StaticJsonBuffer<capacity> jb;
     JsonObject &obj = jb.createObject();
 
     obj["n"] = n;
+    obj["mode"]=mode;
     JsonObject &json_slaves = obj.createNestedObject("slaves");
 
     for (int i = 0; i < n; i++)

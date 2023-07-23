@@ -39,18 +39,14 @@ Function to parse JsonObject and set the slots according to the JSON format:
     "0": {
         "0": {
             "start": {
-                "yr":   ,
-                "mon":  ,
-                "day":  ,
+                "wday":  ,   
                 "hr":   ,
                 "min":  ,
                 "sec":
             },
 
             "end": {
-                "yr":   ,
-                "mon":  ,
-                "day":  ,
+                "wday":  ,
                 "hr":   ,
                 "min":  ,
                 "sec":
@@ -61,7 +57,7 @@ Function to parse JsonObject and set the slots according to the JSON format:
                 "mode": ,
                 "params": {
                     (if mode == MD)
-                    "g0":   ,
+                    "g0":   , --> g1 (TODO: zero indexing to 1 idx)
                     "g1":   ,
                     "g2":   ,
                     .
@@ -73,25 +69,22 @@ Function to parse JsonObject and set the slots according to the JSON format:
                     .
                     .
                     "an-1":
-
                     (if mode == SO)
                     "g0":   ,
                     "g1":   ,
                     "g2":   ,
                     .
                     .
-                    "g(n/2 + 1)":
+                    "g(n/2 - 1)":
                     "a0":   ,
                     "a1":   ,
                     "a2":   ,
                     .
                     .
-                    "a(n/2 + 1)":
-
+                    "a(n/2 - 1)":
                     (if mode == BL)
                     "f":
                 }
-
                 "pedestrian":   ,
                 "red_ext":      ,
                 "ped_timer":    ,
@@ -103,6 +96,12 @@ Function to parse JsonObject and set the slots according to the JSON format:
 */
 void slots_set(JsonObject &parsed);
 
+
+/*
+Returns a struct tm
+*/
+struct tm slots_returnStruct(JsonObject& parsed);
+
 /*
 Clears all slots for all days
 */
@@ -112,5 +111,3 @@ void slots_clearDays();
 Updates the current slot by looking at the current time from the inbuilt RTC of the ESP32
 */
 void slots_updateCurrent();
-
-// Now, add functionality for changing modes using the slots library, maybe add it in updateCurrent()

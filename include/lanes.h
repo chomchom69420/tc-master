@@ -2,6 +2,7 @@
 Publishes the signal over MQTT in a JSON format:
 {
     "n":    ,
+    "mode": ,
     "slaves": {
         "1" : {
             "state":    ,

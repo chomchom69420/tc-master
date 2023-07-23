@@ -21,16 +21,12 @@ typedef std::vector<struct slot> slots;
 std::vector<slots> days(7);
 struct slot current_slot;
 
-static struct tm returnStruct(JsonObject& parsed)
+struct tm slots_returnStruct(JsonObject& parsed)
 {
     struct tm t = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-    t.tm_year = parsed["year"];
-    t.tm_year -= 1990;          // This is year-1900, so 123 = 2023
-    
-    t.tm_mon = parsed["month"];
-    t.tm_mon -= 1;
-
-    t.tm_wday = parsed["day"];
+    t.tm_year = 123;
+    t.tm_mon = 0;
+    t.tm_wday = parsed["wday"];
     t.tm_hour = parsed["hr"];
     t.tm_min = parsed["min"];
     t.tm_sec = parsed["sec"];
@@ -55,7 +51,7 @@ void slots_init()
 
 void slots_setTime(JsonObject& parsed)
 {
-    rtc.setTimeStruct(returnStruct(parsed));
+    rtc.setTimeStruct(slots_returnStruct(parsed));
 }
 
 void slots_initTime()
@@ -63,7 +59,7 @@ void slots_initTime()
     struct tm t = {0, 0, 0, 0, 0, 0, 0, 0, 0};
     t.tm_year = 123;
     t.tm_mon = 0;
-    t.tm_mday = 1;
+    t.tm_wday = 0;
     t.tm_hour = 0;
     t.tm_min = 0;
     t.tm_sec = 0;
@@ -73,14 +69,13 @@ void slots_initTime()
 
 void slots_resetTime()
 {
-    struct tm t = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+    struct tm t = {123, 0, 0, 0, 0, 0, 0, 0, 0};
     t.tm_year = 123;
     t.tm_mon = 0;
-    t.tm_mday = 1;
+    t.tm_wday = 0;
     t.tm_hour = 0;
     t.tm_min = 0;
     t.tm_sec = 0;
-
     rtc.setTimeStruct(t);
 }
 
@@ -95,8 +90,8 @@ void slots_set(JsonObject &parsed)
             JsonObject& end_json = slot.value["end"];
             JsonObject& env_json = slot.value["env"];
             struct tm start, end;
-            start = returnStruct(start_json);
-            end = returnStruct(end_json);
+            start = slots_returnStruct(start_json);
+            end = slots_returnStruct(end_json);
             
             struct slot temp;
             temp.start = start;
@@ -118,11 +113,9 @@ void slots_updateCurrent()
 {
     int day = rtc.getDayofWeek();
     int hr = rtc.getHour();
-    if( strcmp(rtc.getAmPm(false).c_str(), "PM") ==0)
-    {
-        hr+=12;
-    }
     int min = rtc.getMinute();
+    if( strcmp(rtc.getAmPm(false).c_str(), "PM") ==0)
+        hr+=12;
 
     for(auto& slot : days[day])
     {
