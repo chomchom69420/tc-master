@@ -33,7 +33,8 @@ enum States
 
     PED, // Pedestrian lights on (for p time)
 
-    BL // Blinker (BL) mode for Amber
+    BL,         // Blinker (BL) mode for Amber
+    BL_REXT     //Red extension for Blinker
 } state;
 
 typedef struct slave
@@ -244,6 +245,7 @@ void lanes_publishSignal()
         char s[5];
         sprintf(s, "%d", i + 1);
         JsonObject &json_slave = json_slaves.createNestedObject(s);
+        json_slave["en"] = env_getSlaveEnableStatus(i+1);           //slave id is i+1
         json_slave["state"] = slaves[i].state;
         json_slave["red"] = slaves[i].r;
         json_slave["amb"] = slaves[i].amb;
@@ -469,6 +471,14 @@ static void lanes_moveToState(enum States s)
         delay_set(0, r_ext_t);
         break;
 
+    case States::BL:
+        delay_set(0, t_blink);
+        break;
+
+    case States::BL_REXT:
+        delay_set(0, r_ext_t);
+        break;
+    
     default:
         break;
     }
@@ -485,6 +495,7 @@ void lanes_update()
     int mode = env_getMode();
     int p_en = env_getPedEnable();
     int r_ext_en = env_getRedExtEnable();
+    int slave_en[4] = {1,1,1,1};
 
     switch (state)
     {
@@ -561,6 +572,10 @@ void lanes_update()
     /*MD FSM part*/
 
     case States::MD_G1:
+        //Check if skipped 
+        if(!slave_en[0])
+            lanes_moveToState(States::MD_G2);
+        
         if (delay_is_done(0) && mode == MODE_MD)
             lanes_moveToState(States::MD_AMB1);
         else if (mode == MODE_SO)
@@ -570,14 +585,19 @@ void lanes_update()
         break;
 
     case States::MD_AMB1:
-        if (delay_is_done(0) && mode == MODE_MD && r_ext_en)
-            lanes_moveToState(States::MD_REXT1);
-        else if (delay_is_done(0) && mode == MODE_MD && !r_ext_en)
-            lanes_moveToState(States::MD_G2);
-        else if (mode == MODE_SO)
+        if (mode == MODE_SO)
             lanes_moveToState(States::SO_G1);
         else if (mode == MODE_BL)
             lanes_moveToState(States::BL);
+
+        if(delay_is_done(0))
+        {
+            if(r_ext_en)
+                lanes_moveToState(States::MD_REXT1);
+            else
+                lanes_moveToState(States::MD_G2);
+        }
+        
         break;
 
     case States::MD_REXT1:
@@ -677,17 +697,24 @@ void lanes_update()
         break;
 
     case States::BL:
-        if (delay_is_done(0))
-        {
-            // Set the delay again
+        //Stay here as long as mode==BL
+        if(mode!=MODE_BL)
+            lanes_moveToState(States::BL_REXT);
+        break;
+
+    case States::BL_REXT:
+        if(!delay_is_done(0))
+            break;
+        else if(delay_is_done(0) && mode == MODE_BL)
             lanes_moveToState(States::BL);
-        }
-
-        if (mode == MODE_MD)
+        else if(delay_is_done(0) && mode == MODE_MD)
             lanes_moveToState(States::MD_G1);
-        else if (mode == MODE_MD)
+        else if(delay_is_done(0) && mode == MODE_SO)
             lanes_moveToState(States::SO_G1);
-
+        else
+            break;
+        break;
+        
     default:
         break;
     }

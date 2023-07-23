@@ -2,6 +2,7 @@
 
 typedef struct {
     int n_slaves;
+    int slave_en[7];
     int mode;
 
     bool p_en;                   //Pedestrian enable 
@@ -38,32 +39,32 @@ JSON format:
     "mode": ,
     "params": {
         (if mode == MD)
-        "g0":   ,
         "g1":   ,
         "g2":   ,
+        "g3":   ,
         .
         .
-        "gn-1": 
-        "a0":   ,
+        "gn": 
         "a1":   ,
         "a2":   ,
+        "a3":   ,
         .
         .
-        "an-1": 
+        "an": 
 
         (if mode == SO)
-        "g0":   ,
         "g1":   ,
         "g2":   ,
+        "g3":   ,
         .
         .
-        "g(n/2 + 1)": 
-        "a0":   ,
+        "g(ceil(n/2))": 
         "a1":   ,
         "a2":   ,
+        "a3":   ,
         .
         .
-        "a(n/2 + 1)": 
+        "a(ceil(n/2))": 
 
         (if mode == BL)
         "f": 
@@ -72,7 +73,16 @@ JSON format:
     "pedestrian":   ,
     "red_ext":      ,
     "ped_timer":    ,
-    "r_ext_timer":
+    "r_ext_timer":  ,
+
+    "slave_enables": {
+        "1": 1,
+        "2": 0, 
+        "3": 1,
+        .
+        .
+        "n": 1
+    }
 }
 */
 void env_set(JsonObject& parsed);
@@ -154,6 +164,14 @@ void env_setPedTimer(int t);
 int env_getRedExtTimer();
 
 int env_getPedTimer();
+
+/*
+Get whether the slave referred by 'slaveID' is enabled or not
+0 / false --> disabled
+1 / true  --> enabled 
+slaveID --> [1,7]
+*/
+bool env_getSlaveEnableStatus(int slaveID);
 
 
 /*

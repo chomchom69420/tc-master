@@ -5,12 +5,14 @@ Publishes the signal over MQTT in a JSON format:
     "mode": ,
     "slaves": {
         "1" : {
+            "en": 1     ,
             "state":    ,
             "red":      ,
             "amber":    ,
             "green":    
         },
         "2" : {
+            "en": 0     ,
             "state":    ,
             "red":      ,
             "amber":    ,
@@ -66,6 +68,7 @@ States:
     PED, // Pedestrian lights on (for p time)
 
     BL // Blinker (BL) mode for Amber
+    BL_REXT
 */
 int lanes_getState();
 

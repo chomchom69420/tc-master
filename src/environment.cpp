@@ -6,16 +6,17 @@ Environment env;
 
 void env_init()
 {
-  env.n_slaves=0;     //initialize with no slaves
-  env.mode = -1;      //initialize in invalid mode
-  env.p_en = 1;       //enable pedestrian by default
+  env.n_slaves = 0; // initialize with no slaves
+  env.mode = -1;    // initialize in invalid mode
+  env.p_en = 1;     // enable pedestrian by default
   env.r_ext_en = 1;
   env.p_t = 0;
-  env.r_ext_t =0;
-  memset(env.so_g, 0, sizeof(env.so_g));        //set all timers to 0
+  env.r_ext_t = 0;
+  memset(env.so_g, 0, sizeof(env.so_g)); // set all timers to 0
   memset(env.so_amb, 0, sizeof(env.so_amb));
   memset(env.md_g, 0, sizeof(env.md_g));
   memset(env.md_amb, 0, sizeof(env.md_amb));
+  memset(env.slave_en, 0, sizeof(env.md_amb)); // Set all slaves to disabled
 
   int bl_freq = INT16_MAX;
 }
@@ -30,21 +31,21 @@ void env_set(JsonObject &p)
   {
     char s[10];
   case MODE_MD:
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < env.n_slaves; i++)
     {
-      sprintf(s, "g%d", i);
+      sprintf(s, "g%d", i + 1);
       env.md_g[i] = params[s];
-      sprintf(s, "amb%d", i);
+      sprintf(s, "a%d", i + 1);
       env.md_amb[i] = params[s];
     }
     break;
 
   case MODE_SO:
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < env_ceil(env.n_slaves); i++)
     {
-      sprintf(s, "g%d", i);
+      sprintf(s, "g%d", i + 1);
       env.so_g[i] = params[s];
-      sprintf(s, "amb%d", i);
+      sprintf(s, "a%d", i + 1);
       env.so_amb[i] = params[s];
     }
     break;
@@ -65,6 +66,14 @@ void env_set(JsonObject &p)
 
   if (env.r_ext_en)
     env.r_ext_t = p["red_ext_timer"];
+
+  ArduinoJson::JsonObject &slave_enables = p["slave_enables"];
+  for (int i = 0; i < env.n_slaves; i++)
+  {
+    char slave_num[2];
+    sprintf(slave_num, "%d", i + 1);
+    env.slave_en[i] = slave_enables[slave_num];
+  }
 }
 
 void env_setNumSlaves(int n)
@@ -102,7 +111,8 @@ int env_getPedEnable()
   return env.p_en;
 }
 
-int  env_getRedExtEnable() {
+int env_getRedExtEnable()
+{
   return env.r_ext_en;
 }
 
@@ -173,6 +183,10 @@ int env_getPedTimer()
   return env.p_t;
 }
 
+bool env_getSlaveEnableStatus(int slaveId)
+{
+  return env.slave_en[slaveId - 1];
+}
 
 /* NOT USED HERE BUT IN slots.cpp*/
 Environment env_returnStruct(JsonObject &p)
@@ -184,7 +198,7 @@ Environment env_returnStruct(JsonObject &p)
 
   switch (e.mode)
   {
-  char s[10];
+    char s[10];
   case MODE_MD:
     for (int i = 0; i < 4; i++)
     {
@@ -225,7 +239,16 @@ Environment env_returnStruct(JsonObject &p)
   return e;
 }
 
-
-void env_set(Environment e) {
+void env_set(Environment e)
+{
   env = e;
+}
+
+/* HELPER FUNCTIONS */
+static int env_ceil(int n)
+{
+  if (n % 2 == 0)
+    return n / 2;
+  else
+    return n / 2 + 1;
 }
