@@ -33,20 +33,21 @@ enum States
 
     PED, // Pedestrian lights on (for p time)
 
-    BL,         // Blinker (BL) mode for Amber
-    BL_REXT     //Red extension for Blinker
+    BL,     // Blinker (BL) mode for Amber
+    BL_REXT // Red extension for Blinker
 } state;
 
 typedef struct slave
 {
     int slave_id;
     enum SlaveStates state;
-    float r, g, amb;
+    int r, g, amb;
+    int blink_f;
 };
 
 std::vector<slave> slaves(7); // 7 slaves at max
 
-// static int comm_done = 0; // flag to store if latest state has been communicated or not
+static bool comm_done = 0; // flag to store if latest state has been communicated or not
 
 static void lanes_setSlaveState()
 {
@@ -214,6 +215,16 @@ static void lanes_setSlaveState()
             slaves[i].state = SlaveStates::RED;
         break;
 
+    case States::BL:
+        for (int i = 0; i < n; i++)
+            slaves[i].state = SlaveStates::BLINKER;
+        break;
+
+    case States::BL_REXT:
+        for (int i = 0; i < n; i++)
+            slaves[i].state = SlaveStates::RED;
+        break;
+
     default:
         break;
     }
@@ -237,7 +248,7 @@ void lanes_publishSignal()
     JsonObject &obj = jb.createObject();
 
     obj["n"] = n;
-    obj["mode"]=mode;
+    obj["mode"] = mode;
     JsonObject &json_slaves = obj.createNestedObject("slaves");
 
     for (int i = 0; i < n; i++)
@@ -245,41 +256,43 @@ void lanes_publishSignal()
         char s[5];
         sprintf(s, "%d", i + 1);
         JsonObject &json_slave = json_slaves.createNestedObject(s);
-        json_slave["en"] = env_getSlaveEnableStatus(i+1);           //slave id is i+1
+        json_slave["en"] = env_getSlaveEnableStatus(i + 1); // slave id is i+1
         json_slave["state"] = slaves[i].state;
         json_slave["red"] = slaves[i].r;
         json_slave["amb"] = slaves[i].amb;
         json_slave["green"] = slaves[i].g;
+        if (slaves[i].state == SlaveStates::BLINKER)
+        {
+            // give them a blink frequency
+            json_slave["blink_f"] = slaves[i].blink_f;
+        }
     }
 
     obj.printTo(payload);
     mqtt_publish("/traffic/signals", payload);
 }
 
-void lanes_setSlaveTimers()
+void lanes_setSlaveParams()
 {
     // Set timers
     int n = env_getNumSlaves();
     int mode = env_getMode();
+    bool p_en = env_getPedEnable();
+    bool r_en = env_getRedExtEnable();
+    int p_t = env_getPedTimer();
+    int r_ext_t = env_getRedExtTimer();
+    int *arr;
+    arr = env_getParams(mode);
+    int g[4], amb[4];
     for (int i = 0; i < n; i++)
     {
         if (mode == MODE_BL)
         {
-            float f = *(env_getParams(mode));
-            slaves[i].r = slaves[i].g = (1 / f) / 2; // T/2 is the green and red time for blink mode
-            slaves[i].amb = 0;
+            slaves[i].blink_f = *(env_getParams(mode));
         }
 
         else if (mode == MODE_MD)
         {
-            bool p_en = env_getPedEnable();
-            bool r_en = env_getRedExtEnable();
-            int p_t = env_getPedTimer();
-            int r_ext_t = env_getRedExtTimer();
-
-            int *arr;
-            arr = env_getParams(mode);
-            int g[4], amb[4];
             for (int j = 0; j < 4; j++)
             {
                 g[j] = arr[j];
@@ -299,14 +312,6 @@ void lanes_setSlaveTimers()
 
         else if (mode == MODE_SO)
         {
-            bool p_en = env_getPedEnable();
-            bool r_en = env_getRedExtEnable();
-            int p_t = env_getPedTimer();
-            int r_ext_t = env_getRedExtTimer();
-
-            int *arr;
-            arr = env_getParams(mode);
-            int g[4], amb[4];
             for (int j = 0; j < 2; i++)
             {
                 g[j] = arr[j];
@@ -342,14 +347,30 @@ void lanes_start_signals()
     lanes_publishSignal();
 }
 
+static void lanes_performState()
+{
+    //Set the states of each slave
+    lanes_setSlaveState();
+
+    //Publish the command with slave states, parameters on MQTT topic /traffic/signals
+    //comm_done is used as we only want to transmit once for every state
+    if(!comm_done)
+    {
+        lanes_publishSignal();
+        comm_done = 1;
+    }
+}
+
+
 static void lanes_moveToState(enum States s)
 {
     // Set the state
-    state = s;
-    lanes_setSlaveState();
+    state = s; 
 
-    // Publish on MQTT
-    lanes_publishSignal();
+    //Reset comm_done
+    comm_done = false;     
+
+    /* Timers should be started during transition */
 
     int n = env_getNumSlaves();
     int mode = env_getMode();
@@ -357,8 +378,8 @@ static void lanes_moveToState(enum States s)
     // Start timers
     /*
     There are two steps involved in starting timers
-    1. Get the timer paramters from the environment api and store them aptly
-    2. switch over state and set the required timer by calling the delay api
+    1. Get the timer paramters from the environment api and store them
+    2. Switch state and set the required timer by calling the delay api
     */
 
     // Getting the timer data
@@ -368,7 +389,7 @@ static void lanes_moveToState(enum States s)
     int *arr;
     arr = env_getParams(mode);
     int g[4], amb[4];
-    int t_blink;
+    // int t_blink;
     if (mode == MODE_MD)
     {
         for (int j = 0; j < 4; j++)
@@ -385,10 +406,10 @@ static void lanes_moveToState(enum States s)
             amb[j] = arr[j + 2];
         }
     }
-    else if (mode == MODE_BL)
-    {
-        t_blink = 1 / (*arr);
-    }
+    // else if (mode == MODE_BL)
+    // {
+    //     t_blink = 1 / (*arr);
+    // }
 
     switch (state)
     {
@@ -472,13 +493,13 @@ static void lanes_moveToState(enum States s)
         break;
 
     case States::BL:
-        delay_set(0, t_blink);
+        // delay_set(0, t_blink);   //No need to set any timer
         break;
 
     case States::BL_REXT:
         delay_set(0, r_ext_t);
         break;
-    
+
     default:
         break;
     }
@@ -495,7 +516,7 @@ void lanes_update()
     int mode = env_getMode();
     int p_en = env_getPedEnable();
     int r_ext_en = env_getRedExtEnable();
-    int slave_en[4] = {1,1,1,1};
+    int slave_en[4] = {1, 1, 1, 1};
 
     switch (state)
     {
@@ -509,9 +530,12 @@ void lanes_update()
 
         else if (mode == MODE_MD)
             lanes_moveToState(States::MD_G1);
+        
+        //If no transition, now execute the state
+        lanes_performState();
         break;
 
-    /*SO FSM part*/
+        /*SO FSM part*/
 
     case States::SO_G1:
         if (delay_is_done(0) && mode == MODE_SO)
@@ -520,6 +544,8 @@ void lanes_update()
             lanes_moveToState(States::MD_G1);
         else if (mode == MODE_BL)
             lanes_moveToState(States::BL);
+        
+        lanes_performState();
         break;
 
     case States::SO_AMB1:
@@ -531,11 +557,14 @@ void lanes_update()
             lanes_moveToState(States::MD_G1);
         else if (mode == MODE_BL)
             lanes_moveToState(States::BL);
+        lanes_performState();
         break;
 
     case States::SO_REXT1:
         if (delay_is_done(0))
             lanes_moveToState(States::SO_G2);
+
+        lanes_performState();
         break;
 
     case States::SO_G2:
@@ -545,6 +574,8 @@ void lanes_update()
             lanes_moveToState(States::MD_G1);
         else if (mode == MODE_BL)
             lanes_moveToState(States::BL);
+
+        lanes_performState();
         break;
 
     case States::SO_AMB2:
@@ -558,6 +589,8 @@ void lanes_update()
             lanes_moveToState(States::MD_G1);
         else if (mode == MODE_BL)
             lanes_moveToState(States::BL);
+        
+        lanes_performState();
         break;
 
     case States::SO_REXT2:
@@ -565,23 +598,27 @@ void lanes_update()
             lanes_moveToState(States::PED);
         else if (delay_is_done(0) && !p_en)
             lanes_moveToState(States::SO_G1);
+
+        lanes_performState();
         break;
 
-    /*SO FSM part end*/
+        /*SO FSM part end*/
 
-    /*MD FSM part*/
+        /*MD FSM part*/
 
     case States::MD_G1:
-        //Check if skipped 
-        if(!slave_en[0])
+        // Check if skipped
+        if (!slave_en[0])
             lanes_moveToState(States::MD_G2);
-        
+
         if (delay_is_done(0) && mode == MODE_MD)
             lanes_moveToState(States::MD_AMB1);
         else if (mode == MODE_SO)
             lanes_moveToState(States::SO_G1);
         else if (mode == MODE_BL)
             lanes_moveToState(States::BL);
+
+        lanes_performState();
         break;
 
     case States::MD_AMB1:
@@ -590,28 +627,36 @@ void lanes_update()
         else if (mode == MODE_BL)
             lanes_moveToState(States::BL);
 
-        if(delay_is_done(0))
+        if (delay_is_done(0))
         {
-            if(r_ext_en)
+            if (r_ext_en)
                 lanes_moveToState(States::MD_REXT1);
             else
                 lanes_moveToState(States::MD_G2);
         }
-        
+
+        lanes_performState();
         break;
 
     case States::MD_REXT1:
         if (delay_is_done(0))
             lanes_moveToState(States::MD_G2);
+        
+        lanes_performState();
         break;
 
     case States::MD_G2:
+        if (!slave_en[1])
+            lanes_moveToState(States::MD_G3);
+
         if (delay_is_done(0) && mode == MODE_MD)
             lanes_moveToState(States::MD_AMB2);
         else if (mode == MODE_SO)
             lanes_moveToState(States::SO_G1);
         else if (mode == MODE_BL)
             lanes_moveToState(States::BL);
+
+        lanes_performState();
         break;
 
     case States::MD_AMB2:
@@ -623,20 +668,29 @@ void lanes_update()
             lanes_moveToState(States::SO_G1);
         else if (mode == MODE_BL)
             lanes_moveToState(States::BL);
+
+        lanes_performState();
         break;
 
     case States::MD_REXT2:
         if (delay_is_done(0))
             lanes_moveToState(States::MD_G3);
+
+        lanes_performState();
         break;
 
     case States::MD_G3:
+        if (!slave_en[2])
+            lanes_moveToState(States::MD_G4);
+        
         if (delay_is_done(0) && mode == MODE_MD)
             lanes_moveToState(States::MD_AMB4);
         else if (mode == MODE_SO)
             lanes_moveToState(States::SO_G1);
         else if (mode == MODE_BL)
             lanes_moveToState(States::BL);
+
+        lanes_performState();
         break;
 
     case States::MD_AMB3:
@@ -648,20 +702,35 @@ void lanes_update()
             lanes_moveToState(States::SO_G1);
         else if (mode == MODE_BL)
             lanes_moveToState(States::BL);
+
+        lanes_performState();
         break;
 
     case States::MD_REXT3:
         if (delay_is_done(0))
             lanes_moveToState(States::MD_G4);
+
+        lanes_performState();
         break;
 
     case States::MD_G4:
-        if (delay_is_done(0) && mode == MODE_MD)
-            lanes_moveToState(States::MD_AMB4);
-        else if (mode == MODE_SO)
+        if (!slave_en[0])
+        {
+            if(p_en)
+                lanes_moveToState(States::PED);
+            else
+                lanes_moveToState(States::MD_G3);
+        }
+
+        if (mode == MODE_SO)
             lanes_moveToState(States::SO_G1);
         else if (mode == MODE_BL)
             lanes_moveToState(States::BL);
+
+        if (delay_is_done(0) && mode == MODE_MD)
+            lanes_moveToState(States::MD_AMB4);
+        
+        lanes_performState();
         break;
 
     case States::MD_AMB4:
@@ -675,6 +744,8 @@ void lanes_update()
             lanes_moveToState(States::SO_G1);
         else if (mode == MODE_BL)
             lanes_moveToState(States::BL);
+
+        lanes_performState();
         break;
 
     case States::MD_REXT4:
@@ -682,9 +753,11 @@ void lanes_update()
             lanes_moveToState(States::PED);
         else if (delay_is_done(0) && !p_en)
             lanes_moveToState(States::MD_G1);
+
+        lanes_performState();
         break;
 
-    /*MD fsm part end*/
+        /*MD fsm part end*/
 
     case States::PED:
         if (delay_is_done(0))
@@ -694,27 +767,31 @@ void lanes_update()
             else
                 lanes_moveToState(States::s_IDLE);
         }
+
+        lanes_performState();
         break;
 
     case States::BL:
-        //Stay here as long as mode==BL
-        if(mode!=MODE_BL)
+        // Stay here as long as mode==BL
+        if (mode != MODE_BL)
             lanes_moveToState(States::BL_REXT);
+
+        lanes_performState();
         break;
 
     case States::BL_REXT:
-        if(!delay_is_done(0))
+        if (!delay_is_done(0))
             break;
-        else if(delay_is_done(0) && mode == MODE_BL)
+        else if (delay_is_done(0) && mode == MODE_BL)
             lanes_moveToState(States::BL);
-        else if(delay_is_done(0) && mode == MODE_MD)
+        else if (delay_is_done(0) && mode == MODE_MD)
             lanes_moveToState(States::MD_G1);
-        else if(delay_is_done(0) && mode == MODE_SO)
+        else if (delay_is_done(0) && mode == MODE_SO)
             lanes_moveToState(States::SO_G1);
-        else
-            break;
+
+        lanes_performState();
         break;
-        
+
     default:
         break;
     }

@@ -4,6 +4,15 @@
 
 Environment env;
 
+/* HELPER FUNCTIONS */
+static int env_ceil(int n)
+{
+  if (n % 2 == 0)
+    return n / 2;
+  else
+    return n / 2 + 1;
+}
+
 void env_init()
 {
   env.n_slaves = 0; // initialize with no slaves
@@ -242,13 +251,4 @@ Environment env_returnStruct(JsonObject &p)
 void env_set(Environment e)
 {
   env = e;
-}
-
-/* HELPER FUNCTIONS */
-static int env_ceil(int n)
-{
-  if (n % 2 == 0)
-    return n / 2;
-  else
-    return n / 2 + 1;
 }

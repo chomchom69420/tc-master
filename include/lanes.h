@@ -9,7 +9,8 @@ Publishes the signal over MQTT in a JSON format:
             "state":    ,
             "red":      ,
             "amber":    ,
-            "green":    
+            "green":    ,
+            "blink_f":   (only if in blinker state)
         },
         "2" : {
             "en": 0     ,
@@ -17,6 +18,7 @@ Publishes the signal over MQTT in a JSON format:
             "red":      ,
             "amber":    ,
             "green":    
+            "blink_f":   (only if in blinker state)
         },
         ...
     }
@@ -33,7 +35,7 @@ void lanes_init();
 Calculates and updates the slave timers and publishes
 Environment variables (global parameters) need to be set before calling this function
 */
-void lanes_setSlaveTimers();
+void lanes_setSlaveParams();
 
 /*
 Updates the lanes fsm

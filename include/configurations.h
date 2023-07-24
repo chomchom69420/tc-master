@@ -1,6 +1,10 @@
 //Slaves states 
 enum SlaveStates {
-    IDLE, RED, AMBER, GREEN
+    IDLE=0, 
+    RED=4,       //These values need to match the DICTATED_<colour> values in the SignalState enum in tc-slave/src/signals.h
+    AMBER=5, 
+    GREEN=6,
+    BLINKER=7
 };
 
 // Mode select
