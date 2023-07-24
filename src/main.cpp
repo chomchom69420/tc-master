@@ -6,7 +6,8 @@
 #include "environment.h"
 #include "slots.h"
 
-void setup(){
+void setup()
+{
   Serial.begin(9600);
   delay_init();
   mqtt_setup();
@@ -14,16 +15,15 @@ void setup(){
   slots_init();
   slots_initTime();
   env_init();
-  lanes_init(); 
+  lanes_init();
 }
 
-void loop(){
-  if(!mqtt_pubsubloop())  
-    mqtt_reconnect(); 
-  
-  //Update lanes FSM only if control mode is auto
-  if(getControlMode() == ControlMode::AUTO)
-    lanes_update();
+void loop()
+{
+  if (!mqtt_pubsubloop())
+    mqtt_reconnect();
+
+  lanes_update();
 
   slots_updateCurrent();
 }
