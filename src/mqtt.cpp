@@ -10,10 +10,6 @@
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 
-String slave_updates_topic = SLAVE_UPDATES_TOPIC;
-String master_updates_topc = MASTER_UPDATES_TOPIC;
-String signal_publish_topic = SIGNAL_PUBLISH_TOPIC;
-
 // connects to the WiFi access point
 static void connectToWiFi()
 {
@@ -30,14 +26,18 @@ static void connectToWiFi()
 
 static void parseSlots(byte *payload)
 {
-  const int capacity = JSON_OBJECT_SIZE(9);
-  DynamicJsonBuffer jb(capacity);               // Memory pool
-  JsonObject &parsed = jb.parseObject(payload); // Parse message
+  const size_t capacity = 224 * JSON_OBJECT_SIZE(3) +
+                          448 * JSON_OBJECT_SIZE(4) +
+                          225 * JSON_OBJECT_SIZE(7) +
+                          224 * JSON_OBJECT_SIZE(14) +
+                          7 * JSON_OBJECT_SIZE(32) + 54200;
+  DynamicJsonBuffer jsonBuffer(capacity);
+  JsonObject &parsed = jsonBuffer.parseObject(payload); // Parse message
 
-  //Clear the slots and re-store 
+  // Clear the slots and re-store
   slots_clearDays();
 
-  //Re-store
+  // Re-store
   slots_set(parsed);
 }
 
@@ -65,15 +65,20 @@ static void mqtt_callback(char *topic, byte *payload, unsigned int length)
   Serial.print(topic);
   Serial.print("\n");
 
+  String slave_updates_topic = SLAVE_UPDATES_TOPIC;
+  String master_updates_topc = MASTER_UPDATES_TOPIC;
+  String signal_publish_topic = SIGNAL_PUBLISH_TOPIC;
   String control_topic = "/traffic/control";
   String slots_topic = "/traffic/slots";
 
   if (strcmp(topic, master_updates_topc.c_str()) == 0)
     parse_mqtt_updates(payload);
 
+  /*Slave updates topic*/
   else if (strcmp(topic, slave_updates_topic.c_str()) == 0)
     Serial.println("Update from slave rcvd.");
 
+  /*Control topic*/
   else if (strcmp(topic, control_topic.c_str()) == 0)
   {
     const int capacity = JSON_OBJECT_SIZE(6);
@@ -82,10 +87,11 @@ static void mqtt_callback(char *topic, byte *payload, unsigned int length)
     setControlMode(parsed);
   }
 
-  // if in slots topic
+  /*Slots topic*/
   else if (strcmp(topic, slots_topic.c_str()) == 0)
+  {
     parseSlots(payload);
-
+  }
 }
 
 // used to setup MQTT server and callback function
@@ -113,7 +119,7 @@ void mqtt_reconnect()
     {
       Serial.println("Connected.");
 
-      //Subscription list
+      // Subscription list
       mqttClient.subscribe("/traffic/commands");
       mqttClient.subscribe("/traffic/slave_feedback");
       mqttClient.subscribe("/traffic/updates");
@@ -137,38 +143,6 @@ void mqtt_reconnect()
   mqttClient.publish(lastwilltopic.c_str(), "{\"status\":\"Online\"}", true);
 }
 
-// void mqtt_publish_signal()
-// {
-//   int n = env_getNumSlaves();
-
-//   char payload[500];
-//   const int capacity = JSON_OBJECT_SIZE(50);
-//   StaticJsonBuffer<capacity> jb;
-//   JsonObject &obj = jb.createObject();
-//   obj["n"] = n;
-//   for (int i = 1; i <= n; i++)
-//   {
-//     char s[10];
-//     sprintf(s, "S%d", i);
-//     obj[s] = env_getSlaveState(i);
-//   }
-
-//   for (int i = 1; i <= n; i++)
-//   {
-//     char s[10];
-//     sprintf(s, "t%d", i);
-//     JsonObject &t_n = obj.createNestedObject(s);
-//     t_n["red"] = env_getSlaveTimer(i, SlaveStates::RED);
-//     t_n["green"] = env_getSlaveTimer(i, SlaveStates::RED);
-//   }
-
-//   obj["mode"] = env_getMode();
-
-//   // Serializing into payload
-//   obj.printTo(payload);
-//   mqttClient.publish(SIGNAL_PUBLISH_TOPIC, payload);
-// }
-
 bool mqtt_pubsubloop()
 {
   return mqttClient.loop();
@@ -190,6 +164,7 @@ void mqtt_log(String log_message)
   mqttClient.publish("/status/logs", payload);
 }
 
-void mqtt_publish(char* topic, char* payload) {
-    mqttClient.publish(topic, payload);
+void mqtt_publish(char *topic, char *payload)
+{
+  mqttClient.publish(topic, payload);
 }
