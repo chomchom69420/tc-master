@@ -10,7 +10,6 @@
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 
-// connects to the WiFi access point
 static void connectToWiFi()
 {
   Serial.print("Connecting to ");
@@ -66,7 +65,7 @@ static void mqtt_callback(char *topic, byte *payload, unsigned int length)
   Serial.print("\n");
 
   String slave_updates_topic = SLAVE_UPDATES_TOPIC;
-  String master_updates_topc = MASTER_UPDATES_TOPIC;
+  String master_updates_topc = MASTER_UPDATES_TOPIC;  
   String signal_publish_topic = SIGNAL_PUBLISH_TOPIC;
   String control_topic = "/traffic/control";
   String slots_topic = "/traffic/slots";
@@ -134,10 +133,10 @@ void mqtt_reconnect()
         mqttClient.subscribe(s, 1);
       }
 
-      while (!mqttClient.subscribe(slave_updates_topic.c_str(), 1))
-      {
-        Serial.println("Subsribe failed");
-      }
+      // while (!mqttClient.subscribe(slave_updates_topic.c_str(), 1))
+      // {
+      //   Serial.println("Subsribe failed");
+      // }
     }
   }
   mqttClient.publish(lastwilltopic.c_str(), "{\"status\":\"Online\"}", true);
