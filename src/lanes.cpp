@@ -176,7 +176,7 @@ static void lanes_setSlaveState()
     case States::MD_G3:
         for (int i = 0; i < n; i++)
         {
-            if (i == 2 && !slaves[2].skipped) 
+            if (i == 2 && !slaves[2].skipped)
                 slaves[i].state = SlaveStates::GREEN;
             else
                 slaves[i].state = SlaveStates::RED;
@@ -226,7 +226,7 @@ static void lanes_setSlaveState()
     case States::BL:
         for (int i = 0; i < n; i++)
         {
-            if(slaves[i].skipped)
+            if (slaves[i].skipped)
             {
                 slaves[i].state = SlaveStates::RED;
             }
@@ -257,9 +257,9 @@ void lanes_publishSignal()
     int n = env_getNumSlaves();
     int mode = env_getMode();
 
-    const int capacity = JSON_OBJECT_SIZE(50);
-    StaticJsonBuffer<capacity> jb;
-    JsonObject &obj = jb.createObject();
+    const size_t capacity = JSON_OBJECT_SIZE(3) + 7 * JSON_OBJECT_SIZE(6) + JSON_OBJECT_SIZE(7) + 440;
+    DynamicJsonBuffer jsonBuffer(capacity);
+    JsonObject &obj = jsonBuffer.createObject();
 
     obj["n"] = n;
     obj["mode"] = mode;
@@ -331,15 +331,15 @@ void lanes_setSlaveParams()
             int n_r_ext = n;
             for (int j = 0; i < n; i++)
             {
-                n += slaves[j].skipped ? -1 : 0;   
+                n += slaves[j].skipped ? -1 : 0;
             }
 
             slaves[i].r = p_t * p_en + n_r_ext * r_ext_t * r_en;
-            
+
             for (int j = 0; j < n; j++)
             {
-                if (i == j || 
-                    slaves[j].skipped)          //Redundant because: if j is skipped, then g[j] = amb[j] = 0 already
+                if (i == j ||
+                    slaves[j].skipped) // Redundant because: if j is skipped, then g[j] = amb[j] = 0 already
                     continue;
                 slaves[i].r += g[j] + amb[j];
             }
@@ -545,8 +545,8 @@ void lanes_update()
     int r_ext_en = env_getRedExtEnable();
     int slave_en[7];
 
-    for(int i=0;i<n;i++)
-        slave_en[i]= env_getSlaveEnableStatus(i+1);
+    for (int i = 0; i < n; i++)
+        slave_en[i] = env_getSlaveEnableStatus(i + 1);
 
     switch (state)
     {

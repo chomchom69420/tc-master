@@ -21,7 +21,7 @@ void env_init()
   env.r_ext_en = 1;
   env.p_t = 0;
   env.r_ext_t = 0;
-  memset(env.so_g, 0, sizeof(env.so_g)); // set all timers to 0
+  memset(env.so_g, 0, sizeof(env.so_g));  //Set all timers to 0
   memset(env.so_amb, 0, sizeof(env.so_amb));
   memset(env.md_g, 0, sizeof(env.md_g));
   memset(env.md_amb, 0, sizeof(env.md_amb));
