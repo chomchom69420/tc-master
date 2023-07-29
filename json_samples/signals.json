@@ -1,0 +1,62 @@
+{
+    "n":7,
+    "mode":1,
+    "slaves": {
+        "1" : {
+            "en": 1,
+            "state":1,
+            "red":60,
+            "amber":60,
+            "green":60,
+            "blink_f":10  
+        },
+        "2" : {
+            "en": 1,
+            "state":1,
+            "red":60,
+            "amber":60,
+            "green":60,
+            "blink_f":10  
+        },
+        "3" : {
+            "en": 1,
+            "state":1,
+            "red":60,
+            "amber":60,
+            "green":60,
+            "blink_f":10  
+        },
+        "4" : {
+            "en": 1,
+            "state":1,
+            "red":60,
+            "amber":60,
+            "green":60,
+            "blink_f":10  
+        },
+        "5" : {
+            "en": 1,
+            "state":1,
+            "red":60,
+            "amber":60,
+            "green":60,
+            "blink_f":10  
+        },
+        "6" : {
+            "en": 1,
+            "state":1,
+            "red":60,
+            "amber":60,
+            "green":60,
+            "blink_f":10  
+        },
+        "7" : {
+            "en": 1,
+            "state":1,
+            "red":60,
+            "amber":60,
+            "green":60,
+            "blink_f":10  
+        }
+    }
+}
