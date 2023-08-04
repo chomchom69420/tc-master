@@ -21,7 +21,7 @@ void env_init()
   env.r_ext_en = 1;
   env.p_t = 0;
   env.r_ext_t = 0;
-  memset(env.so_g, 0, sizeof(env.so_g));  //Set all timers to 0
+  memset(env.so_g, 0, sizeof(env.so_g)); // Set all timers to 0
   memset(env.so_amb, 0, sizeof(env.so_amb));
   memset(env.md_g, 0, sizeof(env.md_g));
   memset(env.md_amb, 0, sizeof(env.md_amb));
@@ -155,18 +155,25 @@ void env_setParams(int mode, int *param_array)
   }
 }
 
-int *env_getParams(int mode)
+int env_getParams(int mode, int colour=-1, int state_id=-1)
 {
   switch ((mode))
   {
   case MODE_MD:
-    return env.md_g;
+    if (colour)
+      return env.md_g[state_id - 1];
+    else
+      return env.md_amb[state_id - 1];
+
   case MODE_SO:
-    return env.so_g; // can do this because struct is stored contiguously
+    if (colour)
+      return env.so_g[state_id - 1];
+    else
+      return env.so_amb[state_id - 1];
+
   case MODE_BL:
-    int *a;
-    a = &env.bl_freq;
-    return a;
+    return env.bl_freq;
+
   default:
     break;
   }

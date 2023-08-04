@@ -11,11 +11,11 @@ typedef struct {
     int p_t;                    //Pedestrian timer
     int r_ext_t;                //Red extension timer
 
-    int so_g[2];                //green timers for straight only (g1, g2)
-    int so_amb[2];              //amber timers for straight only (a1, a2)
+    int so_g[4];                //green timers for straight only (g1, g2)
+    int so_amb[4];              //amber timers for straight only (a1, a2)
 
-    int md_g[4];                //green timers for multidirection (g1, g2, g3, g4)
-    int md_amb[4];              //amber timers for multidirection (amb1, amb2, amb3, amb4)
+    int md_g[7];                //green timers for multidirection (g1, g2, g3, g4)
+    int md_amb[7];              //amber timers for multidirection (amb1, amb2, amb3, amb4)
 
     int bl_freq;                //blink frequency for blink mode  
 } Environment;
@@ -149,13 +149,27 @@ MODE_BL
 void env_setParams(int mode, int* param_array);
 
 /*
-Returns a pointer to an array containing params for a specific mode
+Returns the parameter of the specific mode, specific colour for the specific slave
 Modes:
 MODE_SO 
 MODE_MD
 MODE_BL
+
+Colours:
+1 --> green
+0 --> amber
+
+State ID:
+For MODE_MD:
+1, 2, 3, 4, 5, 6, 7
+
+For MODE_SO:
+1,2,3,4
+
+For MODE_BL, colour and state_id are not mandatory inputs
+
 */
-int* env_getParams(int mode);
+int env_getParams(int mode, int colour=-1, int state_id=-1);
 
 void env_setRedExtTimer(int t);
 

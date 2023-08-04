@@ -17,6 +17,12 @@ enum States
     SO_G2,    // straight only (SO) 2,4 --> green
     SO_AMB2,  // straight only (SO) 2,4 --> amber
     SO_REXT2, // straight only (SO) --> red extension 2 (for r_ext_t time)
+    SO_G3,
+    SO_AMB3,
+    SO_REXT3,
+    SO_G4,
+    SO_AMB4,
+    SO_REXT4,
 
     MD_G1,    // multidirection (MD) 1 --> green
     MD_AMB1,  // multidirection (MD) 1 --> amber
@@ -30,6 +36,15 @@ enum States
     MD_G4,
     MD_AMB4,
     MD_REXT4,
+    MD_G5,
+    MD_AMB5,
+    MD_REXT5,
+    MD_G6,
+    MD_AMB6,
+    MD_REXT6,
+    MD_G7,
+    MD_AMB7,
+    MD_REXT7,
 
     PED, // Pedestrian lights on (for p time)
 
@@ -46,9 +61,24 @@ typedef struct slave
     int blink_f;
 };
 
-std::vector<slave> slaves(7); // 7 slaves at max
+std::vector<slave> slaves(8); // 7 slaves at max + 1 imaginary slave
 
 static bool comm_done = 0; // flag to store if latest state has been communicated or not
+
+/*
+If mode is Straight Only (SO) and number of slaves is odd then insert imaginary slave in (n/2)th index
+*/
+void insertImaginarySlave()
+{
+    int n = env_getNumSlaves();
+    if (env_getMode() == MODE_SO && n % 2 != 0)
+    {
+        // Insert at n/2th position from beginning
+        // Insert the last slave, which is unpaired slave
+        slave last_slave = slaves[n - 1];
+        slaves.insert(slaves.begin() + n / 2, last_slave);
+    }
+}
 
 static void lanes_setSlaveState()
 {
@@ -57,186 +87,486 @@ static void lanes_setSlaveState()
     switch (state)
     {
     case States::s_IDLE:
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < 7; i++)
         {
             slaves[i].state = SlaveStates::IDLE;
         }
         break;
 
     case States::SO_G1:
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < 7; i++)
         {
-            if (i == 0 || i == 0 + n / 2)
-                slaves[i].state = SlaveStates::GREEN;
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+
             else
-                slaves[i].state = SlaveStates::RED;
+            {
+                if (i == 0 || i == (0 + ((n + 1) / 2)))
+                    slaves[i].state = SlaveStates::GREEN;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
         }
         break;
 
     case States::SO_AMB1:
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < 7; i++)
         {
-            if (i == 0 || i == 0 + n / 2)
-                slaves[i].state = SlaveStates::AMBER;
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+
             else
-                slaves[i].state = SlaveStates::RED;
+            {
+                if (i == 0 || i == (0 + ((n + 1) / 2)))
+                    slaves[i].state = SlaveStates::AMBER;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
         }
         break;
 
     case States::SO_REXT1:
-        for (int i = 0; i < n; i++)
-            slaves[i].state = SlaveStates::RED;
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
         break;
 
     case States::SO_G2:
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < 7; i++)
         {
-            if (i == 1 || i == 1 + n / 2)
-                slaves[i].state = SlaveStates::GREEN;
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+
             else
-                slaves[i].state = SlaveStates::RED;
+            {
+                if (i == 1 || i == (1 + ((n + 1) / 2)))
+                    slaves[i].state = SlaveStates::GREEN;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
         }
         break;
 
     case States::SO_AMB2:
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < 7; i++)
         {
-            if (i == 1 || i == 1 + n / 2)
-                slaves[i].state = SlaveStates::AMBER;
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+
             else
-                slaves[i].state = SlaveStates::RED;
+            {
+                if (i == 1 || i == (1 + ((n + 1) / 2)))
+                    slaves[i].state = SlaveStates::AMBER;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
         }
         break;
 
     case States::SO_REXT2:
-        for (int i = 0; i < n; i++)
-            slaves[i].state = SlaveStates::RED;
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
+        break;
+
+    case States::SO_G3:
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+
+            else
+            {
+                if (i == 2 || i == (2 + ((n + 1) / 2)))
+                    slaves[i].state = SlaveStates::GREEN;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
+        }
+        break;
+
+    case States::SO_AMB3:
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+
+            else
+            {
+                if (i == 2 || i == (2 + ((n + 1) / 2)))
+                    slaves[i].state = SlaveStates::AMBER;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
+        }
+        break;
+
+    case States::SO_REXT3:
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
+        break;
+
+    case States::SO_G4:
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+
+            else
+            {
+                if (i == 3 || i == (3 + ((n + 1) / 2)))
+                    slaves[i].state = SlaveStates::GREEN;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
+        }
+        break;
+
+    case States::SO_AMB4:
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+
+            else
+            {
+                if (i == 3 || i == (3 + ((n + 1) / 2)))
+                    slaves[i].state = SlaveStates::AMBER;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
+        }
+        break;
+
+    case States::SO_REXT4:
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
         break;
 
     case States::PED:
-        for (int i = 0; i < n; i++)
-            slaves[i].state = SlaveStates::RED;
+        for (int i = 0; i < 7; i++)
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+                slaves[i].state = SlaveStates::RED;
         break;
 
     case States::MD_G1:
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < 7; i++)
         {
-            if (i == 0 && !slaves[0].skipped)
-                slaves[i].state = SlaveStates::GREEN;
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
             else
-                slaves[i].state = SlaveStates::RED;
+            {
+                if (i == 0)
+                    slaves[i].state = SlaveStates::GREEN;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
         }
         break;
 
     case States::MD_AMB1:
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < 7; i++)
         {
             if (slaves[i].skipped)
-            {
-                slaves[i].state = SlaveStates::RED;
-                continue;
-            }
-            if (i == 0 && !slaves[0].skipped)
-                slaves[i].state = SlaveStates::AMBER;
+                slaves[i].state = SlaveStates::IDLE;
             else
-                slaves[i].state = SlaveStates::RED;
+            {
+                if (i == 0)
+                    slaves[i].state = SlaveStates::AMBER;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
         }
         break;
 
     case States::MD_REXT1:
-        for (int i = 0; i < n; i++)
-            slaves[i].state = SlaveStates::RED;
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
         break;
 
     case States::MD_G2:
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < 7; i++)
         {
-            if (i == 1 && !slaves[1].skipped)
-                slaves[i].state = SlaveStates::GREEN;
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
             else
-                slaves[i].state = SlaveStates::RED;
+            {
+                if (i == 1)
+                    slaves[i].state = SlaveStates::GREEN;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
         }
         break;
 
     case States::MD_AMB2:
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < 7; i++)
         {
-            if (i == 1 && !slaves[1].skipped)
-                slaves[i].state = SlaveStates::AMBER;
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
             else
-                slaves[i].state = SlaveStates::RED;
+            {
+                if (i == 1)
+                    slaves[i].state = SlaveStates::AMBER;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
         }
         break;
 
     case States::MD_REXT2:
-        for (int i = 0; i < n; i++)
-            slaves[i].state = SlaveStates::RED;
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
         break;
 
     case States::MD_G3:
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < 7; i++)
         {
-            if (i == 2 && !slaves[2].skipped)
-                slaves[i].state = SlaveStates::GREEN;
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
             else
-                slaves[i].state = SlaveStates::RED;
+            {
+                if (i == 2)
+                    slaves[i].state = SlaveStates::GREEN;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
         }
         break;
 
     case States::MD_AMB3:
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < 7; i++)
         {
-            if (i == 2 && !slaves[2].skipped)
-                slaves[i].state = SlaveStates::AMBER;
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
             else
-                slaves[i].state = SlaveStates::RED;
+            {
+                if (i == 2)
+                    slaves[i].state = SlaveStates::AMBER;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
         }
         break;
 
     case States::MD_REXT3:
-        for (int i = 0; i < n; i++)
-            slaves[i].state = SlaveStates::RED;
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
         break;
 
     case States::MD_G4:
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < 7; i++)
         {
-            if (i == 3 && !slaves[3].skipped)
-                slaves[i].state = SlaveStates::GREEN;
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
             else
-                slaves[i].state = SlaveStates::RED;
+            {
+                if (i == 3)
+                    slaves[i].state = SlaveStates::GREEN;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
         }
         break;
 
     case States::MD_AMB4:
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < 7; i++)
         {
-            if (i == 3 && !slaves[3].skipped)
-                slaves[i].state = SlaveStates::AMBER;
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+            {
+                if (i == 3)
+                    slaves[i].state = SlaveStates::AMBER;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
+        }
+        break;
+
+    case States::MD_REXT4:
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
             else
                 slaves[i].state = SlaveStates::RED;
         }
         break;
 
-    case States::MD_REXT4:
-        for (int i = 0; i < n; i++)
-            slaves[i].state = SlaveStates::RED;
+    case States::MD_G5:
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+            {
+                if (i == 4)
+                    slaves[i].state = SlaveStates::GREEN;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
+        }
+        break;
+
+    case States::MD_AMB5:
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+            {
+                if (i == 4)
+                    slaves[i].state = SlaveStates::AMBER;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
+        }
+        break;
+
+    case States::MD_REXT5:
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
+        break;
+
+    case States::MD_G6:
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+            {
+                if (i == 5)
+                    slaves[i].state = SlaveStates::GREEN;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
+        }
+        break;
+
+    case States::MD_AMB6:
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+            {
+                if (i == 5)
+                    slaves[i].state = SlaveStates::AMBER;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
+        }
+        break;
+
+    case States::MD_REXT6:
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
+        break;
+
+    case States::MD_G7:
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+            {
+                if (i == 6)
+                    slaves[i].state = SlaveStates::GREEN;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
+        }
+        break;
+
+    case States::MD_AMB7:
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+            {
+                if (i == 6)
+                    slaves[i].state = SlaveStates::AMBER;
+                else
+                    slaves[i].state = SlaveStates::RED;
+            }
+        }
+        break;
+
+    case States::MD_REXT7:
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
         break;
 
     case States::BL:
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < 7; i++)
         {
             if (slaves[i].skipped)
-            {
-                slaves[i].state = SlaveStates::RED;
-            }
-            slaves[i].state = SlaveStates::BLINKER;
+                slaves[i].state = SlaveStates::IDLE;
+            else
+                slaves[i].state = SlaveStates::BLINKER;
         }
         break;
 
     case States::BL_REXT:
-        for (int i = 0; i < n; i++)
-            slaves[i].state = SlaveStates::RED;
+        for (int i = 0; i < 7; i++)
+        {
+            if (slaves[i].skipped)
+                slaves[i].state = SlaveStates::IDLE;
+            else
+                slaves[i].state = SlaveStates::RED;
+        }
         break;
 
     default:
@@ -294,10 +624,8 @@ void lanes_setSlaveParams()
     bool r_en = env_getRedExtEnable();
     int p_t = env_getPedTimer();
     int r_ext_t = env_getRedExtTimer();
-    int *arr;
-    arr = env_getParams(mode);
 
-    int g[4], amb[4];
+    int g[7], amb[7];
 
     // These need to be stored before computation
     for (int i = 0; i < n; i++)
@@ -306,34 +634,24 @@ void lanes_setSlaveParams()
         slaves[i].skipped = !env_getSlaveEnableStatus(slaves[i].slave_id); //! because skipped is true when slave enable is false
     }
 
-    for (int i = 0; i < n; i++)
+    if (mode == MODE_BL)
+        for (int i = 0; i < n; i++)
+            slaves[i].blink_f = env_getParams(mode);
+
+    else if (mode == MODE_MD)
     {
-        if (mode == MODE_BL)
+        for (int i = 0; i < n; i++)
         {
-            slaves[i].blink_f = *(env_getParams(mode));
+            slaves[i].g = env_getParams(mode, 1, i + 1);
+            slaves[i].amb = env_getParams(mode, 0, i + 1);
         }
 
-        else if (mode == MODE_MD)
+        int n_r_ext = n;
+        for (int j = 0; j < n; j++)
+            n += slaves[j].skipped ? -1 : 0;
+
+        for (int i = 0; i < n; i++)
         {
-            for (int j = 0; j < 4; j++)
-            {
-                g[j] = arr[j];
-                amb[j] = arr[j + 4];
-            }
-
-            slaves[i].g = g[i];
-            slaves[i].amb = amb[i];
-
-            /*
-            Calculate number of red extensions to be executed with slave skipping
-            No. of red ext = n - total slaves skipped
-            */
-            int n_r_ext = n;
-            for (int j = 0; i < n; i++)
-            {
-                n += slaves[j].skipped ? -1 : 0;
-            }
-
             slaves[i].r = p_t * p_en + n_r_ext * r_ext_t * r_en;
 
             for (int j = 0; j < n; j++)
@@ -341,26 +659,31 @@ void lanes_setSlaveParams()
                 if (i == j ||
                     slaves[j].skipped) // Redundant because: if j is skipped, then g[j] = amb[j] = 0 already
                     continue;
-                slaves[i].r += g[j] + amb[j];
+                slaves[i].r += env_getParams(mode, 1, j + 1) + env_getParams(mode, 0, j + 1);
             }
         }
+    }
 
-        else if (mode == MODE_SO)
+    else if (mode == MODE_SO)
+    {
+        insertImaginarySlave();
+        for (int i = 0; i < n + (n % 2); i++)
         {
-            for (int j = 0; j < 2; i++)
-            {
-                g[j] = arr[j];
-                amb[j] = arr[j + 2];
-            }
+            slaves[i].g = env_getParams(mode, 1, i + 1);
+            slaves[i].amb = env_getParams(mode, 0, i + 1);
+            slaves[i % ((n + 1) / 2)].g = env_getParams(mode, 1, i + 1);
+            slaves[i % ((n + 1) / 2)].amb = env_getParams(mode, 0, i + 1);
+        }
 
-            slaves[i].g = g[i];
-            slaves[i].amb = amb[i];
+        for (int i = 0; i < n + (n % 2); i++)
+        {
             slaves[i].r = p_t * p_en + (n / 2) * r_ext_t * r_en;
-            for (int j = 0; j < n / 2; j++)
+            // j --> loops over other slaves
+            for (int j = 0; j < (n + 1) / 2; j++)
             {
                 if (i == j || i - (n / 2) == j)
                     continue;
-                slaves[i].r += g[j] + amb[j];
+                slaves[i].r += env_getParams(mode, 1, j + 1) + env_getParams(mode, 0, j + 1);
             }
         }
     }
@@ -409,7 +732,7 @@ static void lanes_moveToState(enum States s)
     // Start timers
     /*
     There are two steps involved in starting timers
-    1. Get the timer paramters from the environment api and store them
+    1. Get the timer paramters from the environment api
     2. Switch state and set the required timer by calling the delay api
     */
 
@@ -417,38 +740,17 @@ static void lanes_moveToState(enum States s)
     int p_t = env_getPedTimer();
     int r_ext_t = env_getRedExtTimer();
 
-    int *arr;
-    arr = env_getParams(mode);
-    int g[4], amb[4];
-    if (mode == MODE_MD)
-    {
-        for (int j = 0; j < 4; j++)
-        {
-            g[j] = arr[j];
-            amb[j] = arr[j + 4];
-        }
-    }
-    else if (mode == MODE_SO)
-    {
-        for (int j = 0; j < 2; j++)
-        {
-            g[j] = arr[j];
-            amb[j] = arr[j + 2];
-        }
-    }
-    // Don't need to set any timer for MODE_BL as it is infinite
-
     switch (state)
     {
     case States::s_IDLE:
         break;
 
     case States::SO_G1:
-        delay_set(0, g[0]);
+        delay_set(0, env_getParams(MODE_SO, 1, 1));
         break;
 
     case States::SO_AMB1:
-        delay_set(0, amb[0]);
+        delay_set(0, env_getParams(MODE_SO, 0, 1));
         break;
 
     case States::SO_REXT1:
@@ -456,14 +758,38 @@ static void lanes_moveToState(enum States s)
         break;
 
     case States::SO_G2:
-        delay_set(0, g[1]);
+        delay_set(0, env_getParams(MODE_SO, 1, 2));
         break;
 
     case States::SO_AMB2:
-        delay_set(0, amb[1]);
+        delay_set(0, env_getParams(MODE_SO, 0, 2));
         break;
 
     case States::SO_REXT2:
+        delay_set(0, r_ext_t);
+        break;
+
+    case States::SO_G3:
+        delay_set(0, env_getParams(MODE_SO, 1, 3));
+        break;
+
+    case States::SO_AMB3:
+        delay_set(0, env_getParams(MODE_SO, 0, 3));
+        break;
+
+    case States::SO_REXT3:
+        delay_set(0, r_ext_t);
+        break;
+
+    case States::SO_G4:
+        delay_set(0, env_getParams(MODE_SO, 1, 4));
+        break;
+
+    case States::SO_AMB4:
+        delay_set(0, env_getParams(MODE_SO, 0, 4));
+        break;
+
+    case States::SO_REXT4:
         delay_set(0, r_ext_t);
         break;
 
@@ -472,11 +798,11 @@ static void lanes_moveToState(enum States s)
         break;
 
     case States::MD_G1:
-        delay_set(0, g[0]);
+        delay_set(0, env_getParams(MODE_MD, 1, 1));
         break;
 
     case States::MD_AMB1:
-        delay_set(0, amb[0]);
+        delay_set(0, env_getParams(MODE_MD, 0, 1));
         break;
 
     case States::MD_REXT1:
@@ -484,11 +810,11 @@ static void lanes_moveToState(enum States s)
         break;
 
     case States::MD_G2:
-        delay_set(0, g[1]);
+        delay_set(0, env_getParams(MODE_MD, 1, 2));
         break;
 
     case States::MD_AMB2:
-        delay_set(0, amb[1]);
+        delay_set(0, env_getParams(MODE_MD, 0, 2));
         break;
 
     case States::MD_REXT2:
@@ -496,11 +822,11 @@ static void lanes_moveToState(enum States s)
         break;
 
     case States::MD_G3:
-        delay_set(0, g[2]);
+        delay_set(0, env_getParams(MODE_MD, 1, 3));
         break;
 
     case States::MD_AMB3:
-        delay_set(0, amb[2]);
+        delay_set(0, env_getParams(MODE_MD, 0, 3));
         break;
 
     case States::MD_REXT3:
@@ -508,14 +834,50 @@ static void lanes_moveToState(enum States s)
         break;
 
     case States::MD_G4:
-        delay_set(0, g[3]);
+        delay_set(0, env_getParams(MODE_MD, 1, 4));
         break;
 
     case States::MD_AMB4:
-        delay_set(0, amb[3]);
+        delay_set(0, env_getParams(MODE_MD, 0, 4));
         break;
 
     case States::MD_REXT4:
+        delay_set(0, r_ext_t);
+        break;
+
+    case States::MD_G5:
+        delay_set(0, env_getParams(MODE_MD, 1, 5));
+        break;
+
+    case States::MD_AMB5:
+        delay_set(0, env_getParams(MODE_MD, 0, 5));
+        break;
+
+    case States::MD_REXT5:
+        delay_set(0, r_ext_t);
+        break;
+
+    case States::MD_G6:
+        delay_set(0, env_getParams(MODE_MD, 1, 6));
+        break;
+
+    case States::MD_AMB6:
+        delay_set(0, env_getParams(MODE_MD, 0, 6));
+        break;
+
+    case States::MD_REXT6:
+        delay_set(0, r_ext_t);
+        break;
+
+    case States::MD_G7:
+        delay_set(0, env_getParams(MODE_MD, 1, 7));
+        break;
+
+    case States::MD_AMB7:
+        delay_set(0, env_getParams(MODE_MD, 0, 7));
+        break;
+
+    case States::MD_REXT7:
         delay_set(0, r_ext_t);
         break;
 
@@ -614,7 +976,7 @@ void lanes_update()
         else if (delay_is_done(0) && mode == MODE_SO && !r_ext_en && p_en)
             lanes_moveToState(States::PED);
         else if (delay_is_done(0) && mode == MODE_SO && !r_ext_en && !p_en)
-            lanes_moveToState(States::SO_G1);
+            lanes_moveToState(States::SO_G3);
         else if (mode == MODE_MD)
             lanes_moveToState(States::MD_G1);
         else if (mode == MODE_BL)
@@ -624,6 +986,72 @@ void lanes_update()
         break;
 
     case States::SO_REXT2:
+        if (delay_is_done(0))
+            lanes_moveToState(States::SO_G3);
+
+        lanes_performState();
+        break;
+
+    case States::SO_G3:
+        if (delay_is_done(0) && mode == MODE_SO)
+            lanes_moveToState(States::SO_AMB3);
+        else if (mode == MODE_MD)
+            lanes_moveToState(States::MD_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+
+        lanes_performState();
+        break;
+
+    case States::SO_AMB3:
+        if (delay_is_done(0) && mode == MODE_SO && r_ext_en)
+            lanes_moveToState(States::SO_REXT3);
+        else if (delay_is_done(0) && mode == MODE_SO && !r_ext_en && p_en)
+            lanes_moveToState(States::PED);
+        else if (delay_is_done(0) && mode == MODE_SO && !r_ext_en && !p_en)
+            lanes_moveToState(States::SO_G4);
+        else if (mode == MODE_MD)
+            lanes_moveToState(States::MD_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+
+        lanes_performState();
+        break;
+
+    case States::SO_REXT3:
+        if (delay_is_done(0))
+            lanes_moveToState(States::SO_G4);
+
+        lanes_performState();
+        break;
+
+    case States::SO_G4:
+        if (delay_is_done(0) && mode == MODE_SO)
+            lanes_moveToState(States::SO_AMB4);
+        else if (mode == MODE_MD)
+            lanes_moveToState(States::MD_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+
+        lanes_performState();
+        break;
+
+    case States::SO_AMB4:
+        if (delay_is_done(0) && mode == MODE_SO && r_ext_en)
+            lanes_moveToState(States::SO_REXT4);
+        else if (delay_is_done(0) && mode == MODE_SO && !r_ext_en && p_en)
+            lanes_moveToState(States::PED);
+        else if (delay_is_done(0) && mode == MODE_SO && !r_ext_en && !p_en)
+            lanes_moveToState(States::SO_G1);
+        else if (mode == MODE_MD)
+            lanes_moveToState(States::MD_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+
+        lanes_performState();
+        break;
+
+    case States::SO_REXT4:
         if (delay_is_done(0) && p_en)
             lanes_moveToState(States::PED);
         else if (delay_is_done(0) && !p_en)
@@ -744,21 +1172,15 @@ void lanes_update()
         break;
 
     case States::MD_G4:
-        if (!slave_en[0])
-        {
-            if (p_en)
-                lanes_moveToState(States::PED);
-            else
-                lanes_moveToState(States::MD_G3);
-        }
-
-        if (mode == MODE_SO)
-            lanes_moveToState(States::SO_G1);
-        else if (mode == MODE_BL)
-            lanes_moveToState(States::BL);
+        if (!slave_en[3])
+            lanes_moveToState(States::MD_G5);
 
         if (delay_is_done(0) && mode == MODE_MD)
             lanes_moveToState(States::MD_AMB4);
+        else if (mode == MODE_SO)
+            lanes_moveToState(States::SO_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
 
         lanes_performState();
         break;
@@ -766,10 +1188,8 @@ void lanes_update()
     case States::MD_AMB4:
         if (delay_is_done(0) && mode == MODE_MD && r_ext_en)
             lanes_moveToState(States::MD_REXT4);
-        else if (delay_is_done(0) && mode == MODE_MD && !r_ext_en && p_en)
-            lanes_moveToState(States::PED);
-        else if (delay_is_done(0) && mode == MODE_MD && !r_ext_en && !p_en)
-            lanes_moveToState(States::MD_G1);
+        else if (delay_is_done(0) && mode == MODE_MD && !r_ext_en)
+            lanes_moveToState(States::MD_G5);
         else if (mode == MODE_SO)
             lanes_moveToState(States::SO_G1);
         else if (mode == MODE_BL)
@@ -779,6 +1199,118 @@ void lanes_update()
         break;
 
     case States::MD_REXT4:
+        if (delay_is_done(0))
+            lanes_moveToState(States::MD_G5);
+
+        lanes_performState();
+        break;
+
+    case States::MD_G5:
+        if (!slave_en[4])
+            lanes_moveToState(States::MD_G6);
+
+        if (delay_is_done(0) && mode == MODE_MD)
+            lanes_moveToState(States::MD_AMB5);
+        else if (mode == MODE_SO)
+            lanes_moveToState(States::SO_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+
+        lanes_performState();
+        break;
+
+    case States::MD_AMB5:
+        if (delay_is_done(0) && mode == MODE_MD && r_ext_en)
+            lanes_moveToState(States::MD_REXT5);
+        else if (delay_is_done(0) && mode == MODE_MD && !r_ext_en)
+            lanes_moveToState(States::MD_G6);
+        else if (mode == MODE_SO)
+            lanes_moveToState(States::SO_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+
+        lanes_performState();
+        break;
+
+    case States::MD_REXT5:
+        if (delay_is_done(0))
+            lanes_moveToState(States::MD_G6);
+
+        lanes_performState();
+        break;
+
+    case States::MD_G6:
+        if (!slave_en[5])
+            lanes_moveToState(States::MD_G7);
+
+        if (delay_is_done(0) && mode == MODE_MD)
+            lanes_moveToState(States::MD_AMB6);
+        else if (mode == MODE_SO)
+            lanes_moveToState(States::SO_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+
+        lanes_performState();
+        break;
+
+    case States::MD_AMB6:
+        if (delay_is_done(0) && mode == MODE_MD && r_ext_en)
+            lanes_moveToState(States::MD_REXT6);
+        else if (delay_is_done(0) && mode == MODE_MD && !r_ext_en)
+            lanes_moveToState(States::MD_G7);
+        else if (mode == MODE_SO)
+            lanes_moveToState(States::SO_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+
+        lanes_performState();
+        break;
+
+    case States::MD_REXT6:
+        if (delay_is_done(0))
+            lanes_moveToState(States::MD_G7);
+
+        lanes_performState();
+        break;
+
+    case States::MD_G7:
+        if (!slave_en[6])
+        {
+            if (p_en)
+                lanes_moveToState(States::PED);
+            else
+                lanes_moveToState(States::MD_G1);
+        }
+
+        if (delay_is_done(0) && mode == MODE_MD)
+            lanes_moveToState(States::MD_AMB7);
+        else if (mode == MODE_SO)
+            lanes_moveToState(States::SO_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+
+        lanes_performState();
+        break;
+
+    case States::MD_AMB7:
+        if (delay_is_done(0) && mode == MODE_MD && r_ext_en)
+            lanes_moveToState(States::MD_REXT7);
+        else if (delay_is_done(0) && mode == MODE_MD && !r_ext_en)
+        {
+            if (p_en)
+                lanes_moveToState(States::PED);
+            else
+                lanes_moveToState(States::MD_G1);
+        }
+        else if (mode == MODE_SO)
+            lanes_moveToState(States::SO_G1);
+        else if (mode == MODE_BL)
+            lanes_moveToState(States::BL);
+
+        lanes_performState();
+        break;
+
+    case States::MD_REXT7:
         if (delay_is_done(0) && p_en)
             lanes_moveToState(States::PED);
         else if (delay_is_done(0) && !p_en)
