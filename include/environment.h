@@ -169,7 +169,7 @@ For MODE_SO:
 For MODE_BL, colour and state_id are not mandatory inputs
 
 */
-int env_getParams(int mode, int colour=-1, int state_id=-1);
+int env_getParams(int mode, int colour, int state_id);
 
 void env_setRedExtTimer(int t);
 

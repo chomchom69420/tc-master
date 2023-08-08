@@ -10,10 +10,14 @@ const char* PWD ="sohamc621";
 // #define MQTT_PORT 1883
 
 //shiftr.io cloud mqtt address and port 
-#define MQTT_SERVER "traffic-controller.cloud.shiftr.io"
-#define MQTT_PORT 1883
+// #define MQTT_SERVER "traffic-controller.cloud.shiftr.io"
+// #define MQTT_PORT 1883
 // #define USERNAME "traffic-controller"
 // #define MQTT_PWD "f3JuzTfh3utBpIow"
+
+//mosquitto mqtt address and port on raspberry pi
+#define MQTT_SERVER "192.168.8.14"
+#define MQTT_PORT 1883
 
 //MQTT username and password 
 #define MQTT_USERNAME "traffic_controller"

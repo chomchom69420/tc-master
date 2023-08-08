@@ -636,7 +636,7 @@ void lanes_setSlaveParams()
 
     if (mode == MODE_BL)
         for (int i = 0; i < n; i++)
-            slaves[i].blink_f = env_getParams(mode);
+            slaves[i].blink_f = env_getParams(mode, -1, -1);
 
     else if (mode == MODE_MD)
     {

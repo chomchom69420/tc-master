@@ -155,7 +155,7 @@ void env_setParams(int mode, int *param_array)
   }
 }
 
-int env_getParams(int mode, int colour=-1, int state_id=-1)
+int env_getParams(int mode, int colour, int state_id)
 {
   switch ((mode))
   {

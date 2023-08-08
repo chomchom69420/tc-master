@@ -16,6 +16,8 @@ void setup()
   slots_initTime();
   env_init();
   lanes_init();
+
+  mqtt_publish("test/message", "Hello world from ESP32!");
 }
 
 void loop()
