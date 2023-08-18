@@ -30,7 +30,7 @@ static void parseSlots(byte *payload)
                           225 * JSON_OBJECT_SIZE(7) +
                           224 * JSON_OBJECT_SIZE(14) +
                           7 * JSON_OBJECT_SIZE(32) + 54200;
-  DynamicJsonBuffer jsonBuffer(capacity);
+  StaticJsonBuffer<capacity> jsonBuffer;
   JsonObject &parsed = jsonBuffer.parseObject(payload); // Parse message
 
   // Clear the slots and re-store
@@ -44,7 +44,7 @@ static void parse_mqtt_updates(byte *payload)
 {
   Serial.print("Starting to parse updates on master...\n");
   const int capacity = JSON_OBJECT_SIZE(9);
-  DynamicJsonBuffer jb(capacity);               // Memory pool
+  StaticJsonBuffer<capacity> jb;               // Memory pool
   JsonObject &parsed = jb.parseObject(payload); // Parse message
   if (!parsed.success())
   {
@@ -64,9 +64,9 @@ static void mqtt_callback(char *topic, byte *payload, unsigned int length)
   Serial.print(topic);
   Serial.print("\n");
 
-  String slave_updates_topic = SLAVE_UPDATES_TOPIC;
+  String slave_updates_topic = "/traffic/slave_feedback";
   String master_updates_topc = MASTER_UPDATES_TOPIC;  
-  String signal_publish_topic = SIGNAL_PUBLISH_TOPIC;
+  String signal_publish_topic = "/traffic/signals";
   String control_topic = "/traffic/control";
   String slots_topic = "/traffic/slots";
 
@@ -109,12 +109,21 @@ void mqtt_reconnect()
   String username = "traffic-controller";
   String password = "f3JuzTfh3utBpIow";
 
-  String lastwilltopic = "/status/master";
-  String lastwillmessage = "{\"status\":\"Offline\"}";
+  String lastwilltopic = "/traffic/status";
+  
+  // serialize and store the lastWillMessage
+  char lastWillMessage[75];
+  const size_t capacity = JSON_OBJECT_SIZE(2);
+  StaticJsonBuffer<capacity> jb;
+  JsonObject &obj = jb.createObject();
+  obj["species"] = "master";
+  obj["status"] = "offline";
+  obj.printTo(lastWillMessage);
+
   Serial.println("Connecting to MQTT Broker...");
   while (!mqttClient.connected())
   {
-    if (mqttClient.connect(clientId.c_str(), username.c_str(), password.c_str(), lastwilltopic.c_str(), 1, true, lastwillmessage.c_str()))
+    if (mqttClient.connect(clientId.c_str(), username.c_str(), password.c_str(), lastwilltopic.c_str(), 1, true, lastWillMessage))
     {
       Serial.println("Connected.");
 
@@ -125,13 +134,13 @@ void mqtt_reconnect()
       mqttClient.subscribe("/traffic/slots");
       mqttClient.subscribe("/traffic/control");
 
-      // Master subscribes to each client's status topics
-      for (int i = 1; i <= 7; i++)
-      {
-        char s[50];
-        sprintf(s, "/status/slave-%d", i);
-        mqttClient.subscribe(s, 1);
-      }
+      // // Master subscribes to each client's status topics
+      // for (int i = 1; i <= 7; i++)
+      // {
+      //   char s[50];
+      //   sprintf(s, "/status/slave-%d", i);
+      //   mqttClient.subscribe(s, 1);
+      // }
 
       // while (!mqttClient.subscribe(slave_updates_topic.c_str(), 1))
       // {
@@ -139,7 +148,16 @@ void mqtt_reconnect()
       // }
     }
   }
-  mqttClient.publish(lastwilltopic.c_str(), "{\"status\":\"Online\"}", true);
+
+  // serialize and store the message to be sent to the lastWillTopic
+  char message[75];
+  StaticJsonBuffer<capacity> jbuff;
+  JsonObject &obj1 = jbuff.createObject();
+  obj1["species"] = "master";
+  obj1["status"] = "online";
+  obj1.printTo(message);
+
+  mqttClient.publish(lastwilltopic.c_str(), message, true);
 }
 
 bool mqtt_pubsubloop()
